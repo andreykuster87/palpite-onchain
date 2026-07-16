@@ -37,7 +37,10 @@ export function createTxlineClient(network = 'devnet') {
     return data.token;
   }
 
-  /** Headers para requisições de dados (JWT sempre; X-Api-Token quando ativado). */
+  /**
+   * Headers para requisições de dados (JWT sempre; X-Api-Token quando ativado).
+   * @param {string} jwt @param {string} [apiToken]
+   */
   function headers(jwt, apiToken) {
     /** @type {Record<string,string>} */
     const h = { Authorization: `Bearer ${jwt}` };
@@ -86,7 +89,11 @@ export function createTxlineClient(network = 'devnet') {
     return res.json();
   }
 
-  /** Agenda de partidas (fixtures). */
+  /**
+   * Agenda de partidas (fixtures).
+   * @param {string} jwt @param {string|undefined} apiToken
+   * @param {Record<string,string>} [params]
+   */
   async function schedule(jwt, apiToken, params = {}) {
     const qs = new URLSearchParams(params).toString();
     const res = await fetch(`${apiBase}/scores/schedule${qs ? `?${qs}` : ''}`, {

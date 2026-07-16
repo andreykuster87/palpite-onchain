@@ -2,9 +2,7 @@
 // Responde { source: "txline", stats } ou 503 { source: "unavailable" }
 // (sem token ativado / fixture sem dados) — o cliente cai no modo demo.
 import { NextResponse } from "next/server";
-// @ts-expect-error módulos .mjs compartilhados com scripts/Edge (sem tipos)
 import { txline, withAuth, API_TOKEN } from "@/lib/txline-server.mjs";
-// @ts-expect-error idem
 import { snapshotToMatchStats } from "@/lib/txline-adapter.mjs";
 
 export const revalidate = 0;

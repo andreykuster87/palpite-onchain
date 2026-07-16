@@ -5,7 +5,6 @@
 // os fixtureIds reais da cobertura TxLINE.
 import { NextResponse } from "next/server";
 import { COPA_FIXTURES } from "@/lib/copa";
-// @ts-expect-error módulo .mjs compartilhado (sem tipos)
 import { txline, withAuth, API_TOKEN } from "@/lib/txline-server.mjs";
 
 export const revalidate = 0;

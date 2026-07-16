@@ -141,7 +141,7 @@ export function scoreCartela(cartela, match, config = DEFAULT_CONFIG) {
   const breakdown = [{ key: 'result', hit: true, delta: 0 }];
   let points = 0;
 
-  /** @param {string} key @param {boolean} hit */
+  /** @param {'exactScore'|'totalGoals'|'totalCards'|'totalCorners'} key @param {boolean} hit */
   const apply = (key, hit) => {
     const delta = hit ? config.weights[key] : -config.penalties[key];
     points += delta;
@@ -172,8 +172,9 @@ export function scoreCartela(cartela, match, config = DEFAULT_CONFIG) {
 /**
  * Ordena cartelas para o ranking de uma liga.
  * Desempate: maior pontuação → menor nº de erros → submissão mais antiga.
- * @param {Array<{ points:number, valid:boolean, errors:number, submittedAt:number }>} entries
- * @returns {Array} ordenado (melhor primeiro)
+ * @template {{ points:number, valid:boolean, errors:number, submittedAt:number }} T
+ * @param {T[]} entries
+ * @returns {T[]} ordenado (melhor primeiro)
  */
 export function rankEntries(entries) {
   return [...entries].sort((a, b) => {
