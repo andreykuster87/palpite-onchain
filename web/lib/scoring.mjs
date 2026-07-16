@@ -1,6 +1,6 @@
 // @ts-check
 /**
- * Palpite On-Chain — motor de pontuação (núcleo puro, sem dependências).
+ * 4Line On-Chain — motor de pontuação (núcleo puro, sem dependências).
  *
  * Mecânica:
  *  1. TRAVA: se o palpite de resultado (1X2) estiver errado, a cartela é

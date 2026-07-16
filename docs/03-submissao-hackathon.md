@@ -5,7 +5,7 @@ _Time: Andrey Kuster (solo) · Deadline: 2026-07-18 23:59_
 
 ## Ideia central
 
-**Palpite On-Chain** — o bolão da Copa reinventado com dados verificáveis.
+**4Line On-Chain** — o bolão da Copa reinventado com dados verificáveis.
 O torcedor preenche uma cartela por jogo: **quem vence (1X2)** — a "trava",
 errou zerou — mais variáveis **mais/menos** (gols, cartões, escanteios) contra
 linhas da partida. Acertos somam, erros subtraem, e o ranking da liga decide

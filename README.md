@@ -1,6 +1,6 @@
-# Palpite On-Chain
+# 4Line On-Chain
 
-Jogo de palpites esportivos estilo Cartola, **on-chain na Solana**, com
+Bolão da Copa provably-fair, **on-chain na Solana**, com
 liquidação verificável via oráculo **TxLINE** (TxODDS). Em vez de escalar
 jogadores, o usuário prevê variáveis da partida — **resultado, placar, cartões,
 escanteios** — e pontua pelos acertos. A pontuação é _provably-fair_: o dado que

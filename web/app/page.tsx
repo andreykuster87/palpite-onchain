@@ -198,7 +198,7 @@ export default function Home() {
             Copa do Mundo 2026 · mata-mata
           </div>
           <h1 className="font-display text-5xl uppercase leading-[0.95] tracking-wide text-chalk sm:text-6xl">
-            Palpite
+            4Line
             <br />
             <span className="text-gold-400 [text-shadow:0_0_32px_rgba(255,196,0,0.35)]">
               On-Chain

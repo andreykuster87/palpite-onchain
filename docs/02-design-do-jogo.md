@@ -1,6 +1,6 @@
-# Palpite On-Chain — documento de design
+# 4Line On-Chain — documento de design
 
-_Codinome de trabalho: **Palpite On-Chain** (nome definitivo a definir)_
+_Nome do app: **4Line On-Chain** (trocadilho com Tx**LINE** + on-chain)_
 
 Um jogo de palpites esportivos estilo Cartola, **on-chain na Solana**, com
 liquidação verificável via oráculo TxLINE. Em vez de escalar jogadores, o

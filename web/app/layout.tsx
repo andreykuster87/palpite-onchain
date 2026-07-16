@@ -19,9 +19,9 @@ const chivoMono = Chivo_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Palpite On-Chain",
+  title: "4Line On-Chain",
   description:
-    "Fantasy de palpites esportivos provably-fair na Solana. Preveja o jogo, não escale time.",
+    "Bolão da Copa provably-fair na Solana, liquidado pelo oráculo TxLINE. Preveja o jogo, não escale time.",
 };
 
 export default function RootLayout({
