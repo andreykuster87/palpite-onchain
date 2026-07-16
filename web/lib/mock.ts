@@ -1,13 +1,8 @@
-// Dados mockados para o protótipo jogável (Fase 1).
+// Tipos de fixture e geração de adversários mockados para o ranking.
 //
-// Nada aqui vem do TxLINE ainda: cada fixture carrega um `finalStats`
-// pré-determinado (o "resultado real" que o oráculo entregaria no futuro),
-// mantido oculto na UI até o jogador "apitar o fim de jogo". Isso permite
-// provar a mecânica de pontuação de ponta a ponta, sem backend nem blockchain.
-//
-// As `lines` são as linhas de mais/menos da partida (como um mercado de
-// totals definiria — no futuro, derivadas do feed de odds do TxLINE).
-// Sempre meias-linhas (x.5) para nunca haver empate técnico.
+// A liga de adversários é simulada no protótipo (Fase 1) — pessoas reais
+// entram na Fase Supabase. Os adversários palpitam de forma plausível em
+// torno das stats de referência da partida, com erros realistas.
 
 import type { Cartela, MatchStats, Outcome, OUPick } from "./scoring";
 
@@ -20,13 +15,13 @@ export interface MarketLines {
 export interface Fixture {
   id: string;
   league: string;
-  kickoff: string; // ISO — apenas rótulo
+  kickoff: string; // ISO
   home: { name: string; short: string };
   away: { name: string; short: string };
-  /** Linhas de mais/menos oferecidas para esta partida. */
+  /** Linhas de mais/menos oferecidas para esta partida (sempre x.5). */
   lines: MarketLines;
-  /** Resultado final simulado (o que o TxLINE proveria). Oculto até apitar. */
-  finalStats: MatchStats;
+  /** Stats finais, se já conhecidas (parciais ou completas). */
+  finalStats?: MatchStats;
 }
 
 export interface Opponent {
@@ -35,64 +30,6 @@ export interface Opponent {
   cartela: Cartela;
   submittedAt: number;
 }
-
-/** Rodada mockada do Brasileirão. */
-export const FIXTURES: Fixture[] = [
-  {
-    id: "fx-1",
-    league: "Brasileirão · Rodada 15",
-    kickoff: "2026-07-18T21:30:00Z",
-    home: { name: "Flamengo", short: "FLA" },
-    away: { name: "Palmeiras", short: "PAL" },
-    lines: { totalGoals: 2.5, totalCards: 5.5, totalCorners: 9.5 },
-    finalStats: {
-      goalsHome: 2,
-      goalsAway: 1,
-      yellowHome: 2,
-      yellowAway: 3,
-      redHome: 0,
-      redAway: 1,
-      cornersHome: 6,
-      cornersAway: 4,
-    },
-  },
-  {
-    id: "fx-2",
-    league: "Brasileirão · Rodada 15",
-    kickoff: "2026-07-19T00:00:00Z",
-    home: { name: "Corinthians", short: "COR" },
-    away: { name: "São Paulo", short: "SAO" },
-    lines: { totalGoals: 2.5, totalCards: 6.5, totalCorners: 9.5 },
-    finalStats: {
-      goalsHome: 1,
-      goalsAway: 1,
-      yellowHome: 4,
-      yellowAway: 2,
-      redHome: 0,
-      redAway: 0,
-      cornersHome: 3,
-      cornersAway: 7,
-    },
-  },
-  {
-    id: "fx-3",
-    league: "Brasileirão · Rodada 15",
-    kickoff: "2026-07-19T21:00:00Z",
-    home: { name: "Grêmio", short: "GRE" },
-    away: { name: "Internacional", short: "INT" },
-    lines: { totalGoals: 2.5, totalCards: 4.5, totalCorners: 10.5 },
-    finalStats: {
-      goalsHome: 0,
-      goalsAway: 2,
-      yellowHome: 3,
-      yellowAway: 1,
-      redHome: 1,
-      redAway: 0,
-      cornersHome: 5,
-      cornersAway: 5,
-    },
-  },
-];
 
 const NOMES = [
   "Ana",
@@ -109,8 +46,8 @@ const NOMES = [
   "Lucas",
 ];
 
-// PRNG determinístico (mulberry32) — evita depender de Math.random e mantém
-// os adversários estáveis entre reloads para uma mesma fixture.
+// PRNG determinístico (mulberry32) — mantém os adversários estáveis entre
+// reloads para uma mesma fixture.
 function mulberry32(seed: number) {
   return function () {
     seed |= 0;
@@ -133,11 +70,15 @@ function seedFromString(s: string): number {
 const OUTCOMES: Outcome[] = ["HOME", "DRAW", "AWAY"];
 
 /**
- * Gera adversários mockados para uma fixture. Cartelas plausíveis (às vezes
- * acertam a trava, às vezes não) para dar vida ao ranking. Determinístico
- * por fixture.
+ * Gera adversários mockados para uma fixture, palpitando em torno de
+ * `refStats` (as stats reais/simuladas da partida). Determinístico por
+ * fixture.
  */
-export function opponentsFor(fixture: Fixture, count = 7): Opponent[] {
+export function opponentsFor(
+  fixture: Fixture,
+  refStats: MatchStats,
+  count = 7
+): Opponent[] {
   const rand = mulberry32(seedFromString(fixture.id));
   const pick = <T,>(arr: T[]): T => arr[Math.floor(rand() * arr.length)];
   const near = (base: number, spread: number) =>
@@ -149,12 +90,13 @@ export function opponentsFor(fixture: Fixture, count = 7): Opponent[] {
     return { pick: r < 0.625 ? "OVER" : "UNDER", line };
   };
 
-  const f = fixture.finalStats;
-
   return NOMES.slice(0, count).map((name, i) => {
     const cartela: Cartela = {
       result: pick(OUTCOMES),
-      exactScore: { home: near(f.goalsHome, 1), away: near(f.goalsAway, 1) },
+      exactScore: {
+        home: near(refStats.goalsHome, 1),
+        away: near(refStats.goalsAway, 1),
+      },
       totalGoals: maybeOU(fixture.lines.totalGoals),
       totalCards: maybeOU(fixture.lines.totalCards),
       totalCorners: maybeOU(fixture.lines.totalCorners),

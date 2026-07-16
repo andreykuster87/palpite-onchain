@@ -46,14 +46,30 @@ export function createTxlineClient(network = 'devnet') {
   }
 
   /**
-   * Snapshot de scores de uma fixture.
+   * Snapshot de scores de uma fixture (path param, conforme exemplos devnet).
    * @param {string} jwt @param {string|undefined} apiToken @param {string|number} fixtureId
+   * @param {number} [asOf] timestamp opcional
    */
-  async function scoresSnapshot(jwt, apiToken, fixtureId) {
-    const res = await fetch(`${apiBase}/scores/snapshot?fixtureId=${fixtureId}`, {
+  async function scoresSnapshot(jwt, apiToken, fixtureId, asOf) {
+    const url = `${apiBase}/scores/snapshot/${fixtureId}${asOf ? `?asOf=${asOf}` : ''}`;
+    const res = await fetch(url, { headers: headers(jwt, apiToken) });
+    if (!res.ok) throw new Error(`scores/snapshot ${res.status}`);
+    return res.json();
+  }
+
+  /**
+   * Snapshot de fixtures por competição/dia (ex.: Copa 2026 = competitionId 72).
+   * @param {string} jwt @param {string|undefined} apiToken
+   * @param {{competitionId?: number, startEpochDay?: number}} [params]
+   */
+  async function fixturesSnapshot(jwt, apiToken, params = {}) {
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)]))
+    ).toString();
+    const res = await fetch(`${apiBase}/fixtures/snapshot${qs ? `?${qs}` : ''}`, {
       headers: headers(jwt, apiToken),
     });
-    if (!res.ok) throw new Error(`scores/snapshot ${res.status}`);
+    if (!res.ok) throw new Error(`fixtures/snapshot ${res.status}`);
     return res.json();
   }
 
@@ -80,17 +96,35 @@ export function createTxlineClient(network = 'devnet') {
     return res.json();
   }
 
-  return { config: cfg, apiBase, guestToken, scoresSnapshot, statValidation, schedule };
+  return { config: cfg, apiBase, guestToken, scoresSnapshot, fixturesSnapshot, statValidation, schedule };
 }
 
 /**
- * TODO: confirmar o mapa numérico de statKeys na devnet.
- * Placeholder com base no exemplo do doc (statKeys=1,2,3001,3002).
+ * Mapa de statKeys do feed de futebol (docs/scores/soccer-feed, confirmado):
+ * chave = prefixo de período + chave base. Período: Total=0, H1=1000, HT=2000,
+ * H2=3000, ET1=4000, ET2=5000, PE=6000, ETTotal=7000. Ex.: 3008 = escanteios
+ * do participante 2 no segundo tempo.
  */
 export const STAT_KEYS = {
-  // ⚠️ valores a confirmar contra /api/scores/stat-validation na devnet
+  // Chaves base (jogo inteiro, prefixo 0)
   goalsHome: 1,
   goalsAway: 2,
-  yellowCards: 3001,
-  corners: 3002,
+  yellowHome: 3,
+  yellowAway: 4,
+  redHome: 5,
+  redAway: 6,
+  cornersHome: 7,
+  cornersAway: 8,
+};
+
+/** Prefixos de período para compor statKeys (ex.: H2 + goalsHome = 3001). */
+export const PERIOD_PREFIX = {
+  total: 0,
+  h1: 1000,
+  ht: 2000,
+  h2: 3000,
+  et1: 4000,
+  et2: 5000,
+  pe: 6000,
+  etTotal: 7000,
 };

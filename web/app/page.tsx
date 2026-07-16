@@ -2,24 +2,43 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { scoreCartela, rankEntries } from "@/lib/scoring.mjs";
-import type { Cartela } from "@/lib/scoring";
-import { FIXTURES, opponentsFor, type Fixture } from "@/lib/mock";
+import type { Cartela, MatchStats } from "@/lib/scoring";
+import { opponentsFor } from "@/lib/mock";
+import { COPA_FIXTURES, type CopaFixture } from "@/lib/copa";
 import { commitHash } from "@/lib/hash";
 import { CartelaForm } from "@/components/CartelaForm";
 import { Scoreboard } from "@/components/Scoreboard";
 import { Ranking, type RankRow } from "@/components/Ranking";
 
-// v2: variáveis secundárias migraram de número exato para over/under.
-const STORAGE_KEY = "palpite:cartelas:v2";
+// v3: fixtures da Copa 2026 (IDs reais TxLINE) + stats por fonte (oráculo/demo).
+const STORAGE_KEY = "palpite:cartelas:v3";
 
 type SavedCartelas = Record<string, { cartela: Cartela; submittedAt: number }>;
+type StatsSource = "txline" | "demo";
+type WhistledMap = Record<string, { stats: MatchStats; source: StatsSource }>;
 
 function newDraft(): Cartela {
   return { result: "HOME" };
 }
 
-function errorsOf(cartela: Cartela, fixture: Fixture): number {
-  return scoreCartela(cartela, fixture.finalStats).breakdown.filter((b) => !b.hit).length;
+/** Stats de demonstração: usa o que se sabe e completa o resto de forma plausível. */
+function demoFill(fixture: CopaFixture): MatchStats {
+  return {
+    yellowHome: 2,
+    yellowAway: 2,
+    redHome: 0,
+    redAway: 0,
+    cornersHome: 5,
+    cornersAway: 4,
+    goalsHome: 1,
+    goalsAway: 1,
+    ...fixture.finalStats,
+    ...fixture.demoStats,
+  };
+}
+
+function errorsOf(cartela: Cartela, stats: MatchStats): number {
+  return scoreCartela(cartela, stats).breakdown.filter((b) => !b.hit).length;
 }
 
 function kickoffLabel(iso: string): string {
@@ -28,15 +47,29 @@ function kickoffLabel(iso: string): string {
 }
 
 export default function Home() {
-  const [fixtureId, setFixtureId] = useState<string>(FIXTURES[0].id);
+  const [fixtures, setFixtures] = useState<CopaFixture[]>(COPA_FIXTURES);
+  const [dataSource, setDataSource] = useState<"txline" | "seed">("seed");
+  const [fixtureId, setFixtureId] = useState<string>(COPA_FIXTURES[0].id);
   const [draft, setDraft] = useState<Cartela>(newDraft());
   const [saved, setSaved] = useState<SavedCartelas>({});
-  const [whistled, setWhistled] = useState<Record<string, boolean>>({});
+  const [whistled, setWhistled] = useState<WhistledMap>({});
+  const [whistling, setWhistling] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
-  const fixture = FIXTURES.find((f) => f.id === fixtureId)!;
-  const savedEntry = saved[fixtureId];
-  const isWhistled = !!whistled[fixtureId];
+  const fixture = fixtures.find((f) => f.id === fixtureId) ?? fixtures[0];
+  const savedEntry = saved[fixture.id];
+  const finished = whistled[fixture.id];
+
+  // Fixtures ao vivo da API (cai no seed embutido se indisponível).
+  useEffect(() => {
+    fetch("/api/fixtures")
+      .then((r) => r.json())
+      .then((d) => {
+        if (Array.isArray(d.fixtures) && d.fixtures.length) setFixtures(d.fixtures);
+        setDataSource(d.source === "txline" ? "txline" : "seed");
+      })
+      .catch(() => setDataSource("seed"));
+  }, []);
 
   // Hidrata do localStorage no cliente.
   useEffect(() => {
@@ -61,46 +94,66 @@ export default function Home() {
 
   // Ao trocar de fixture, carrega a cartela selada (se houver) no rascunho.
   useEffect(() => {
-    setDraft(saved[fixtureId]?.cartela ?? newDraft());
-  }, [fixtureId, saved]);
+    setDraft(saved[fixture.id]?.cartela ?? newDraft());
+  }, [fixture.id, saved]);
 
   function handleSubmit() {
     setSaved((s) => ({
       ...s,
-      [fixtureId]: { cartela: draft, submittedAt: Date.now() },
+      [fixture.id]: { cartela: draft, submittedAt: Date.now() },
     }));
   }
 
   function reopen() {
     setSaved((s) => {
       const next = { ...s };
-      delete next[fixtureId];
+      delete next[fixture.id];
       return next;
     });
-    setWhistled((w) => ({ ...w, [fixtureId]: false }));
+    setWhistled((w) => {
+      const next = { ...w };
+      delete next[fixture.id];
+      return next;
+    });
     setDraft(savedEntry?.cartela ?? newDraft());
   }
 
+  /** Apita: tenta o dado real do oráculo; sem ele, simulação rotulada. */
+  async function whistle() {
+    setWhistling(true);
+    let result: { stats: MatchStats; source: StatsSource } = {
+      stats: demoFill(fixture),
+      source: "demo",
+    };
+    try {
+      const res = await fetch(`/api/scores/${fixture.txlineFixtureId}`);
+      if (res.ok) {
+        const d = await res.json();
+        if (d?.stats) result = { stats: d.stats, source: "txline" };
+      }
+    } catch {
+      /* mantém demo */
+    }
+    setWhistled((w) => ({ ...w, [fixture.id]: result }));
+    setWhistling(false);
+  }
+
   const score = useMemo(
-    () =>
-      savedEntry && isWhistled
-        ? scoreCartela(savedEntry.cartela, fixture.finalStats)
-        : null,
-    [savedEntry, isWhistled, fixture]
+    () => (savedEntry && finished ? scoreCartela(savedEntry.cartela, finished.stats) : null),
+    [savedEntry, finished]
   );
 
   const ranking = useMemo<RankRow[]>(() => {
-    if (!savedEntry || !isWhistled) return [];
-    const opponents = opponentsFor(fixture);
-    const you = {
-      id: "you",
-      name: "Você",
-      isYou: true,
-      cartela: savedEntry.cartela,
-      submittedAt: savedEntry.submittedAt,
-    };
+    if (!savedEntry || !finished) return [];
+    const opponents = opponentsFor(fixture, finished.stats);
     const all = [
-      you,
+      {
+        id: "you",
+        name: "Você",
+        isYou: true,
+        cartela: savedEntry.cartela,
+        submittedAt: savedEntry.submittedAt,
+      },
       ...opponents.map((o) => ({
         id: o.id,
         name: o.name,
@@ -110,14 +163,14 @@ export default function Home() {
       })),
     ];
     const scored = all.map((e) => {
-      const r = scoreCartela(e.cartela, fixture.finalStats);
+      const r = scoreCartela(e.cartela, finished.stats);
       return {
         id: e.id,
         name: e.name,
         isYou: e.isYou,
         points: r.points,
         valid: r.valid,
-        errors: errorsOf(e.cartela, fixture),
+        errors: errorsOf(e.cartela, finished.stats),
         submittedAt: e.submittedAt,
       };
     });
@@ -128,12 +181,13 @@ export default function Home() {
       valid: r.valid,
       isYou: r.isYou,
     }));
-  }, [savedEntry, isWhistled, fixture]);
+  }, [savedEntry, finished, fixture]);
 
-  const f = fixture.finalStats;
-  const totalCards =
-    (f.yellowHome ?? 0) + (f.yellowAway ?? 0) + (f.redHome ?? 0) + (f.redAway ?? 0);
-  const totalCorners = (f.cornersHome ?? 0) + (f.cornersAway ?? 0);
+  const f = finished?.stats;
+  const totalCards = f
+    ? (f.yellowHome ?? 0) + (f.yellowAway ?? 0) + (f.redHome ?? 0) + (f.redAway ?? 0)
+    : 0;
+  const totalCorners = f ? (f.cornersHome ?? 0) + (f.cornersAway ?? 0) : 0;
 
   return (
     <main className="mx-auto max-w-6xl px-4 pb-20 pt-10 sm:px-6">
@@ -141,7 +195,7 @@ export default function Home() {
       <header className="reveal mb-8 flex flex-wrap items-end justify-between gap-6 border-b-2 border-dashed border-chalk/12 pb-7">
         <div>
           <div className="mb-2 font-mono text-[11px] uppercase tracking-[0.35em] text-grass-400">
-            Liga experimental · fase 1
+            Copa do Mundo 2026 · mata-mata
           </div>
           <h1 className="font-display text-5xl uppercase leading-[0.95] tracking-wide text-chalk sm:text-6xl">
             Palpite
@@ -157,9 +211,11 @@ export default function Home() {
           </p>
         </div>
         <div className="border border-chalk/15 px-4 py-3 font-mono text-[11px] uppercase leading-relaxed tracking-widest text-chalk-dim">
-          protótipo local
+          oráculo txline · devnet
           <br />
-          <span className="text-chalk/35">dados mockados · sem dinheiro real</span>
+          <span className={dataSource === "txline" ? "text-grass-400" : "text-chalk/35"}>
+            {dataSource === "txline" ? "● feed ao vivo" : "○ fixtures da cobertura oficial"}
+          </span>
         </div>
       </header>
 
@@ -168,8 +224,8 @@ export default function Home() {
         className="reveal mb-8 flex gap-2.5 overflow-x-auto pb-1"
         style={{ animationDelay: "0.06s" }}
       >
-        {FIXTURES.map((fx) => {
-          const active = fx.id === fixtureId;
+        {fixtures.map((fx) => {
+          const active = fx.id === fixture.id;
           const done = !!saved[fx.id];
           return (
             <button
@@ -186,7 +242,7 @@ export default function Home() {
                 {done && <span className="ml-2 align-middle text-xs text-gold-400">●</span>}
               </span>
               <span className="font-mono text-[10px] uppercase tracking-widest text-chalk/40">
-                {kickoffLabel(fx.kickoff)}
+                {fx.stage} · {kickoffLabel(fx.kickoff)}
               </span>
             </button>
           );
@@ -203,10 +259,12 @@ export default function Home() {
           >
             <div className="mb-6 flex items-center justify-between font-mono text-[11px] uppercase tracking-[0.25em]">
               <span className="text-chalk-dim">{fixture.league}</span>
-              {isWhistled ? (
-                <span className="text-danger">● encerrado</span>
+              {finished ? (
+                <span className={finished.source === "txline" ? "text-grass-400" : "text-gold-400"}>
+                  ● {finished.source === "txline" ? "dado do oráculo" : "simulação"}
+                </span>
               ) : (
-                <span className="blink text-grass-400">● a jogar</span>
+                <span className="blink text-grass-400">● aguardando palpites</span>
               )}
             </div>
 
@@ -221,7 +279,7 @@ export default function Home() {
               </div>
 
               <div className="px-2 text-center">
-                {isWhistled ? (
+                {f ? (
                   <div className="score-pop font-mono text-6xl font-bold tabular-nums leading-none text-gold-400 [text-shadow:0_0_36px_rgba(255,196,0,0.5)] sm:text-7xl">
                     {f.goalsHome}
                     <span className="text-chalk/25">–</span>
@@ -244,7 +302,7 @@ export default function Home() {
               </div>
             </div>
 
-            {isWhistled && (
+            {f && (
               <div className="relative mt-7 grid grid-cols-3 gap-2 border-t border-dashed border-chalk/12 pt-5 text-center">
                 {[
                   { v: f.goalsHome + f.goalsAway, l: "gols" },
@@ -269,14 +327,12 @@ export default function Home() {
             className="reveal relative border border-chalk/12 bg-night-800 p-6"
             style={{ animationDelay: "0.14s" }}
           >
-            {/* Cabeçalho do bilhete */}
             <div className="mb-5 flex items-center justify-between">
               <span className="font-display text-sm uppercase tracking-[0.2em] text-chalk">
                 Cartela
               </span>
               <span className="font-mono text-[10px] uppercase tracking-widest text-chalk/35">
-                nº {fixture.id.replace("fx-", "").padStart(4, "0")} · {fixture.home.short}×
-                {fixture.away.short}
+                fixture {fixture.txlineFixtureId} · {fixture.home.short}×{fixture.away.short}
               </span>
             </div>
 
@@ -304,7 +360,6 @@ export default function Home() {
                     onSubmit={() => {}}
                     disabled
                   />
-                  {/* Carimbo */}
                   <div className="stamp pointer-events-none absolute right-2 top-1 border-[3px] border-gold-400/80 px-3 py-1 font-display text-xl uppercase tracking-[0.25em] text-gold-400/90">
                     Selada
                   </div>
@@ -320,12 +375,13 @@ export default function Home() {
                 </div>
 
                 <div className="flex flex-wrap gap-2.5">
-                  {!isWhistled && (
+                  {!finished && (
                     <button
-                      onClick={() => setWhistled((w) => ({ ...w, [fixtureId]: true }))}
-                      className="flex-1 border border-gold-400 bg-gold-400 py-3.5 font-display text-lg uppercase tracking-[0.22em] text-night-950 shadow-[5px_5px_0_rgba(0,0,0,0.55)] transition hover:-translate-y-0.5 hover:bg-gold-300 active:translate-y-0 active:shadow-[2px_2px_0_rgba(0,0,0,0.55)]"
+                      onClick={whistle}
+                      disabled={whistling}
+                      className="flex-1 border border-gold-400 bg-gold-400 py-3.5 font-display text-lg uppercase tracking-[0.22em] text-night-950 shadow-[5px_5px_0_rgba(0,0,0,0.55)] transition hover:-translate-y-0.5 hover:bg-gold-300 active:translate-y-0 active:shadow-[2px_2px_0_rgba(0,0,0,0.55)] disabled:cursor-wait disabled:opacity-70"
                     >
-                      🔔 Apitar fim de jogo
+                      {whistling ? "Consultando oráculo…" : "🔔 Apitar fim de jogo"}
                     </button>
                   )}
                   <button
@@ -335,10 +391,10 @@ export default function Home() {
                     Refazer
                   </button>
                 </div>
-                {!isWhistled && (
+                {!finished && (
                   <p className="text-center font-mono text-[11px] leading-relaxed text-chalk/35">
-                    Cartela selada (commit). No jogo real, o resultado viria provado
-                    pelo oráculo TxLINE — aqui simulamos o apito.
+                    Cartela selada (commit). O apito consulta o oráculo TxLINE; sem
+                    dado final disponível, roda uma simulação rotulada.
                   </p>
                 )}
               </div>
@@ -369,7 +425,8 @@ export default function Home() {
       </div>
 
       <footer className="mt-14 border-t border-chalk/8 pt-5 text-center font-mono text-[11px] uppercase tracking-widest text-chalk/25">
-        Protótipo local · motor de pontuação lib/scoring.mjs · Solana em breve
+        Copa 2026 · oráculo TxLINE (devnet) · motor lib/scoring.mjs · liquidação
+        on-chain em breve
       </footer>
     </main>
   );

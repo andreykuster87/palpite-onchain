@@ -68,12 +68,14 @@ Merkle** contra raízes armazenadas on-chain (PDA `daily_scores_roots`). Pontos-
   TxL — só taxas de transação Solana (devnet tem airdrop grátis). Ideal para
   prototipar.
 
-## 5. Pendências (não bloqueiam o design)
+## 5. Pendências
 
-- **Mapa numérico exato dos `statKeys`** (ex.: qual número = gols, cartões,
-  escanteios). O exemplo devnet usa `statKeys=1,2,3001,3002`, mas o doc não
-  enumera o significado de cada número. Pegar do repositório de exemplos
-  devnet ou consultando `/api/scores/stat-validation` na devnet.
+- ~~**Mapa numérico exato dos `statKeys`**~~ **RESOLVIDO (16/07)**: chave =
+  prefixo de período + chave base. Bases: 1/2 = gols P1/P2, 3/4 = amarelos,
+  5/6 = vermelhos, 7/8 = escanteios. Períodos: Total=0, H1=1000, HT=2000,
+  H2=3000, ET1=4000, ET2=5000, PE=6000, ETTotal=7000. Ex.: `3008` = escanteios
+  do P2 no 2º tempo. Fonte: `documentation/scores/soccer-feed` (+ PDF
+  `txodds-soccer-feed-v1.1.pdf`). Mapa codificado em `web/lib/txline.mjs`.
 - **Latência do dado final** (quando um placar/estatística é considerado
   "final" e imutável para liquidar prêmio). Confirmar na página de streaming.
 
