@@ -1,0 +1,13 @@
+# NUNCA versionar chaves/segredos
+.keys/
+*.env
+.env*
+
+# dependências
+node_modules/
+
+# artefatos
+.next/
+out/
+build/
+*.tsbuildinfo

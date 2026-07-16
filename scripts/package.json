@@ -1,0 +1,12 @@
+{
+  "name": "palpite-onchain-scripts",
+  "private": true,
+  "type": "module",
+  "description": "Scripts de devnet: ativação do tier grátis TxLINE e verificações.",
+  "dependencies": {
+    "@coral-xyz/anchor": "0.32.1",
+    "@solana/spl-token": "^0.4.12",
+    "@solana/web3.js": "^1.91.9",
+    "tweetnacl": "^1.0.3"
+  }
+}

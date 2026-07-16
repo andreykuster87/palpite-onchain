@@ -1,0 +1,165 @@
+@import "tailwindcss";
+
+/* Fontes injetadas pelo next/font (layout.tsx) */
+@theme inline {
+  --font-display: var(--font-anton), "Arial Narrow", sans-serif;
+  --font-body: var(--font-archivo), system-ui, sans-serif;
+  --font-mono: var(--font-chivo), ui-monospace, monospace;
+}
+
+@theme {
+  /* Noite de estádio: verde-preto profundo */
+  --color-night-950: #060a08;
+  --color-night-900: #0a0f0c;
+  --color-night-800: #101812;
+  --color-night-700: #182219;
+
+  /* Giz das linhas do campo */
+  --color-chalk: #edf3e8;
+  --color-chalk-dim: #8fa596;
+
+  /* Grama sob refletor (acertos) */
+  --color-grass-400: #2fd478;
+  --color-grass-500: #16a765;
+
+  /* Sódio dos refletores / troféu (ação, destaque) */
+  --color-gold-400: #ffc400;
+  --color-gold-300: #ffd75e;
+
+  --color-danger: #ff5f56;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  background-color: var(--color-night-950);
+  /* Refletores: dois banhos de luz vindos de cima do estádio */
+  background-image:
+    radial-gradient(90rem 42rem at 12% -12%, rgba(255, 196, 0, 0.07), transparent 60%),
+    radial-gradient(80rem 40rem at 88% -18%, rgba(47, 212, 120, 0.09), transparent 60%);
+  background-attachment: fixed;
+  color: var(--color-chalk);
+}
+
+/* Grão de transmissão noturna por cima de tudo */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0.28;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+}
+
+/* ---------- utilitários de composição ---------- */
+
+/* Linha de recibo com pontilhado entre rótulo e valor */
+.leader {
+  flex: 1;
+  margin: 0 0.6rem;
+  border-bottom: 2px dotted rgba(237, 243, 232, 0.18);
+  transform: translateY(-4px);
+}
+
+/* Círculo central de giz atrás do placar (referência ao campo) */
+.scoreboard::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 26rem;
+  height: 26rem;
+  transform: translate(-50%, -50%);
+  border: 1.5px solid rgba(237, 243, 232, 0.05);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* Carimbo "SELADA" */
+.stamp {
+  animation: stamp-in 0.35s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+
+/* Código de barras fake do commit */
+.barcode {
+  height: 2rem;
+  background-image: repeating-linear-gradient(
+    90deg,
+    rgba(237, 243, 232, 0.85) 0 2px,
+    transparent 2px 5px,
+    rgba(237, 243, 232, 0.85) 5px 6px,
+    transparent 6px 11px,
+    rgba(237, 243, 232, 0.85) 11px 14px,
+    transparent 14px 17px
+  );
+  opacity: 0.7;
+}
+
+/* ---------- animações ---------- */
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.reveal {
+  animation: rise 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes stamp-in {
+  from {
+    opacity: 0;
+    transform: rotate(-8deg) scale(1.7);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(-8deg) scale(1);
+  }
+}
+
+@keyframes score-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  60% {
+    transform: scale(1.12);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.score-pop {
+  animation: score-pop 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.blink {
+  animation: blink 1.6s ease-in-out infinite;
+}
