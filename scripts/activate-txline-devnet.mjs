@@ -176,8 +176,15 @@ async function main() {
   if (!res.ok) {
     throw new Error(`token/activate ${res.status}: ${await res.text()}`);
   }
-  const data = await res.json();
-  const apiToken = data.token ?? data;
+  // A resposta pode ser JSON ({token}) ou o token cru em texto (txoracle_api_...).
+  const body = await res.text();
+  let apiToken;
+  try {
+    const data = JSON.parse(body);
+    apiToken = data.token ?? data;
+  } catch {
+    apiToken = body.trim();
+  }
   fs.writeFileSync(
     TOKEN_PATH,
     JSON.stringify({ apiToken, wallet: wallet.publicKey.toBase58(), txSig, activatedAt: new Date().toISOString() }, null, 2)

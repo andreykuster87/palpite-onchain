@@ -1,11 +1,11 @@
 // Copa do Mundo 2026 — fixtures REAIS do TxLINE (fase eliminatória).
 //
-// Os fixtureIds vêm da cobertura oficial do TxLINE
-// (documentation/scores/schedule). O app tenta sempre os dados ao vivo via
-// /api/fixtures e /api/scores/[id]; este módulo é (1) a lista-semente com os
-// IDs reais e (2) o fallback de demonstração quando o oráculo ainda não
-// respondeu (ex.: jogo futuro) — nesse caso o "apitar" usa `demoStats`,
-// claramente rotulado como simulação na UI.
+// Os fixtureIds e todos os `finalStats` abaixo vieram do próprio oráculo
+// (fixtures/snapshot + scores/snapshot na devnet, tier grátis ativado em
+// 17/07/2026). O app tenta sempre os dados ao vivo via /api/fixtures e
+// /api/scores/[id]; este módulo é (1) a lista-semente com os IDs reais e
+// (2) o fallback de demonstração — para jogos ainda sem dado final, o
+// "apitar" usa `demoStats`, claramente rotulado como simulação na UI.
 
 import type { MatchStats } from "./scoring";
 import type { Fixture } from "./mock";
@@ -34,8 +34,13 @@ export const COPA_FIXTURES: CopaFixture[] = [
     home: { name: "França", short: "FRA" },
     away: { name: "Marrocos", short: "MAR" },
     lines: KNOCKOUT_LINES,
-    // Placar real 2–0 (TxLINE schedule); cartões/escanteios virão do snapshot.
-    finalStats: { goalsHome: 2, goalsAway: 0 },
+    // Stats reais do snapshot TxLINE (statKeys 1–8).
+    finalStats: {
+      goalsHome: 2, goalsAway: 0,
+      yellowHome: 0, yellowAway: 1,
+      redHome: 0, redAway: 0,
+      cornersHome: 5, cornersAway: 5,
+    },
   },
   {
     id: "wc-qf-esp-bel",
@@ -47,7 +52,12 @@ export const COPA_FIXTURES: CopaFixture[] = [
     home: { name: "Espanha", short: "ESP" },
     away: { name: "Bélgica", short: "BEL" },
     lines: KNOCKOUT_LINES,
-    finalStats: { goalsHome: 2, goalsAway: 1 },
+    finalStats: {
+      goalsHome: 2, goalsAway: 1,
+      yellowHome: 2, yellowAway: 2,
+      redHome: 0, redAway: 0,
+      cornersHome: 5, cornersAway: 1,
+    },
   },
   {
     id: "wc-qf-nor-eng",
@@ -59,7 +69,12 @@ export const COPA_FIXTURES: CopaFixture[] = [
     home: { name: "Noruega", short: "NOR" },
     away: { name: "Inglaterra", short: "ENG" },
     lines: KNOCKOUT_LINES,
-    finalStats: { goalsHome: 1, goalsAway: 2 },
+    finalStats: {
+      goalsHome: 1, goalsAway: 2,
+      yellowHome: 1, yellowAway: 0,
+      redHome: 0, redAway: 0,
+      cornersHome: 7, cornersAway: 4,
+    },
   },
   {
     id: "wc-qf-arg-sui",
@@ -71,27 +86,28 @@ export const COPA_FIXTURES: CopaFixture[] = [
     home: { name: "Argentina", short: "ARG" },
     away: { name: "Suíça", short: "SUI" },
     lines: KNOCKOUT_LINES,
-    finalStats: { goalsHome: 3, goalsAway: 1 },
+    finalStats: {
+      goalsHome: 3, goalsAway: 1,
+      yellowHome: 3, yellowAway: 1,
+      redHome: 0, redAway: 1,
+      cornersHome: 8, cornersAway: 2,
+    },
   },
   {
     id: "wc-sf-fra-esp",
     txlineFixtureId: 18237038,
     league: "Copa 2026 · Semifinal",
     stage: "Semifinal",
-    status: "UPCOMING",
+    status: "FINISHED",
     kickoff: "2026-07-14T19:00:00Z",
     home: { name: "França", short: "FRA" },
     away: { name: "Espanha", short: "ESP" },
     lines: KNOCKOUT_LINES,
-    demoStats: {
-      goalsHome: 1,
-      goalsAway: 2,
-      yellowHome: 3,
-      yellowAway: 2,
-      redHome: 0,
-      redAway: 0,
-      cornersHome: 4,
-      cornersAway: 6,
+    finalStats: {
+      goalsHome: 0, goalsAway: 2,
+      yellowHome: 2, yellowAway: 1,
+      redHome: 0, redAway: 0,
+      cornersHome: 7, cornersAway: 1,
     },
   },
   {
@@ -99,20 +115,50 @@ export const COPA_FIXTURES: CopaFixture[] = [
     txlineFixtureId: 18241006,
     league: "Copa 2026 · Semifinal",
     stage: "Semifinal",
-    status: "UPCOMING",
+    status: "FINISHED",
     kickoff: "2026-07-15T19:00:00Z",
     home: { name: "Inglaterra", short: "ENG" },
     away: { name: "Argentina", short: "ARG" },
     lines: KNOCKOUT_LINES,
+    finalStats: {
+      goalsHome: 1, goalsAway: 2,
+      yellowHome: 1, yellowAway: 3,
+      redHome: 0, redAway: 0,
+      cornersHome: 1, cornersAway: 6,
+    },
+  },
+  {
+    id: "wc-3rd-fra-eng",
+    txlineFixtureId: 18257865,
+    league: "Copa 2026 · 3º lugar",
+    stage: "Decisão de 3º lugar",
+    status: "UPCOMING",
+    kickoff: "2026-07-18T21:00:00Z",
+    home: { name: "França", short: "FRA" },
+    away: { name: "Inglaterra", short: "ENG" },
+    lines: KNOCKOUT_LINES,
     demoStats: {
-      goalsHome: 2,
-      goalsAway: 2, // demo: pênaltis não contam no 1X2 do tempo normal
-      yellowHome: 4,
-      yellowAway: 3,
-      redHome: 0,
-      redAway: 1,
-      cornersHome: 5,
-      cornersAway: 7,
+      goalsHome: 2, goalsAway: 1,
+      yellowHome: 2, yellowAway: 2,
+      redHome: 0, redAway: 0,
+      cornersHome: 6, cornersAway: 5,
+    },
+  },
+  {
+    id: "wc-final-esp-arg",
+    txlineFixtureId: 18257739,
+    league: "Copa 2026 · FINAL",
+    stage: "Final",
+    status: "UPCOMING",
+    kickoff: "2026-07-19T19:00:00Z",
+    home: { name: "Espanha", short: "ESP" },
+    away: { name: "Argentina", short: "ARG" },
+    lines: KNOCKOUT_LINES,
+    demoStats: {
+      goalsHome: 1, goalsAway: 2,
+      yellowHome: 3, yellowAway: 2,
+      redHome: 0, redAway: 0,
+      cornersHome: 5, cornersAway: 4,
     },
   },
 ];

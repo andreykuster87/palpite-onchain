@@ -54,8 +54,8 @@ function collectStats(node, out) {
     return;
   }
 
-  // Recursão em campos prováveis
-  for (const field of ['stats', 'scoreboard', 'updates', 'data', 'payload', 'summary']) {
+  // Recursão em campos prováveis (payload real usa 'Stats', PascalCase)
+  for (const field of ['Stats', 'stats', 'scoreboard', 'updates', 'data', 'payload', 'summary']) {
     if (field in node) collectStats(node[field], out);
   }
 }
@@ -66,6 +66,16 @@ function collectStats(node, out) {
  * @returns {import('./scoring').MatchStats | null}
  */
 export function snapshotToMatchStats(payload) {
+  // O snapshot real é um array de updates com `Seq` crescente; o estado final
+  // da partida é o update de maior Seq que carrega `Stats`.
+  if (Array.isArray(payload)) {
+    const withStats = payload.filter((u) => u && typeof u === 'object' && u.Stats);
+    if (withStats.length) {
+      withStats.sort((a, b) => (a.Seq ?? 0) - (b.Seq ?? 0));
+      payload = withStats[withStats.length - 1];
+    }
+  }
+
   /** @type {Map<number, number>} */
   const found = new Map();
   collectStats(payload, found);
