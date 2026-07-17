@@ -72,10 +72,16 @@ placar.
 - Instabilidade intermitente de rede (`ECONNRESET`) em `txline.txodds.com`
   durante a tarde de 16/07.
 
+## Links da submissão
+
+- **App ao vivo:** https://4line-onchain.vercel.app (oráculo TxLINE ativo em produção)
+- **Repositório:** https://github.com/andreykuster87/palpite-onchain
+- **Vídeo demo:** _(a gravar — roteiro em `docs/04-roteiro-video.md`)_
+
 ## Checklist de submissão
 
 - [ ] Vídeo demo ≤ 5 min (roteiro em `docs/04-roteiro-video.md`)
-- [ ] Repositório público no GitHub
-- [ ] Link funcional (Vercel) — modo fallback funciona; token ativa dados 100% live
+- [x] Repositório público no GitHub
+- [x] Link funcional deployado (Vercel) — TxLINE alimentando dados em produção
 - [x] Documentação técnica (este arquivo + docs/01 + docs/02)
 - [ ] Dupla submissão: trilha global (Consumer) + listing Superteam Brasil
