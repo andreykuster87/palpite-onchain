@@ -671,6 +671,7 @@ export default function Home() {
                   ? prizeBreakdown(activePool.buyIn, activeMembers.length + 1)
                   : null
               }
+              scoring={activePool.scoring}
             />
           </div>
 
@@ -812,6 +813,7 @@ export default function Home() {
                   ? prizeBreakdown(activePool.buyIn, activeMembers.length + 1)
                   : null
               }
+              scoring={activePool.scoring}
             />
           </div>
           {/* Detalhe da sua pontuação (abaixo do ranking) */}

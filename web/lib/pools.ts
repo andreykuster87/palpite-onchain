@@ -29,8 +29,12 @@ export interface Pool {
   games: string[];
   /** Permite mais de um bilhete por pessoa? (vale o de maior pontuação). */
   multiTicket: boolean;
+  /** Máx. de bilhetes por pessoa quando multiTicket. 0 = ilimitado. */
+  maxTickets: number;
   /** Disputa por pontos das variáveis, ou só pelo resultado final (1X2). */
   scoring: PoolScoring;
+  /** Prazo pra apostar (ms epoch). null = até o 1º jogo começar. */
+  deadline: number | null;
   createdAt: number;
 }
 
@@ -38,10 +42,29 @@ export interface Pool {
 export interface PoolRules {
   games: string[];
   multiTicket: boolean;
+  maxTickets: number;
   scoring: PoolScoring;
+  deadline: number | null;
 }
 
-const DEFAULT_RULES: PoolRules = { games: [], multiTicket: false, scoring: "points" };
+const DEFAULT_RULES: PoolRules = {
+  games: [],
+  multiTicket: false,
+  maxTickets: 0,
+  scoring: "points",
+  deadline: null,
+};
+
+/** Rótulo do prazo pra apostar. */
+export function deadlineLabel(deadline: number | null): string {
+  if (deadline == null) return "até o 1º jogo começar";
+  return new Date(deadline).toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 /** Opções de buy-in oferecidas ao criar um bolão. */
 export const BUY_IN_OPTIONS = [0, 50, 100] as const;
@@ -76,7 +99,9 @@ export const PLATFORM_POOL: Pool = {
   buyIn: 50,
   games: [],
   multiTicket: false,
+  maxTickets: 0,
   scoring: "points",
+  deadline: null,
   createdAt: 0,
 };
 
@@ -89,7 +114,9 @@ export const FIRMA_FC_POOL: Pool = {
   buyIn: 100,
   games: [],
   multiTicket: false,
+  maxTickets: 0,
   scoring: "points",
+  deadline: null,
   createdAt: 0,
 };
 
@@ -155,7 +182,9 @@ function read(): Pool[] {
         buyIn: typeof p.buyIn === "number" ? p.buyIn : 0,
         games: Array.isArray(p.games) ? p.games : [],
         multiTicket: typeof p.multiTicket === "boolean" ? p.multiTicket : false,
+        maxTickets: typeof p.maxTickets === "number" ? p.maxTickets : 0,
         scoring: p.scoring === "result" ? "result" : "points",
+        deadline: typeof p.deadline === "number" ? p.deadline : null,
       }));
   } catch {
     return [];
@@ -210,7 +239,9 @@ export function createPool(
     buyIn: buyIn > 0 ? Math.round(buyIn) : 0,
     games: Array.isArray(rules.games) ? rules.games : [],
     multiTicket: !!rules.multiTicket,
+    maxTickets: rules.multiTicket && rules.maxTickets ? Math.max(0, Math.round(rules.maxTickets)) : 0,
     scoring: rules.scoring === "result" ? "result" : "points",
+    deadline: typeof rules.deadline === "number" ? rules.deadline : null,
     createdAt: now,
   };
   write([pool, ...pools]);
@@ -277,7 +308,9 @@ export function encodePool(pool: Pool): string {
       b: pool.buyIn,
       g: pool.games,
       m: pool.multiTicket ? 1 : 0,
+      x: pool.maxTickets,
       s: pool.scoring,
+      d: pool.deadline,
     })
   );
 }
@@ -292,7 +325,9 @@ export function decodePool(code: string): Pool | null {
       b?: unknown;
       g?: unknown;
       m?: unknown;
+      x?: unknown;
       s?: unknown;
+      d?: unknown;
     };
     const c = typeof raw.c === "string" ? normalizeCode(raw.c) : "";
     if (!c) return null;
@@ -304,7 +339,9 @@ export function decodePool(code: string): Pool | null {
       buyIn: typeof raw.b === "number" && raw.b > 0 ? Math.round(raw.b) : 0,
       games: Array.isArray(raw.g) ? (raw.g as string[]).filter((x) => typeof x === "string") : [],
       multiTicket: raw.m === 1 || raw.m === true,
+      maxTickets: typeof raw.x === "number" ? raw.x : 0,
       scoring: raw.s === "result" ? "result" : "points",
+      deadline: typeof raw.d === "number" ? raw.d : null,
       createdAt: 0,
     };
   } catch {

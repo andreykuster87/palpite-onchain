@@ -10,6 +10,7 @@ import {
   moneyLabel,
   brl,
   prizeBreakdown,
+  deadlineLabel,
 } from "@/lib/pools";
 import type { Identity } from "@/lib/identity";
 import { Ranking, type RankRow } from "@/components/Ranking";
@@ -67,7 +68,9 @@ export function PoolBar({
   // Regras do bolão (criação): jogos, bilhetes/pessoa, modo de disputa.
   const [gamesInput, setGamesInput] = useState<string[]>([]);
   const [multiTicketInput, setMultiTicketInput] = useState(false);
+  const [maxTicketsInput, setMaxTicketsInput] = useState<number>(0);
   const [scoringInput, setScoringInput] = useState<PoolScoring>("points");
+  const [deadlineInput, setDeadlineInput] = useState(""); // datetime-local
   const [codeInput, setCodeInput] = useState("");
   const [nickInput, setNickInput] = useState(identity.nickname);
   // Painel do bolão (nome clicado): premiação + ranking + participantes.
@@ -102,13 +105,17 @@ export function PoolBar({
     onCreate(nm, buyInInput, {
       games: gamesInput,
       multiTicket: multiTicketInput,
+      maxTickets: maxTicketsInput,
       scoring: scoringInput,
+      deadline: deadlineInput ? new Date(deadlineInput).getTime() : null,
     });
     setNameInput("");
     setBuyInInput(0);
     setGamesInput([]);
     setMultiTicketInput(false);
+    setMaxTicketsInput(0);
     setScoringInput("points");
+    setDeadlineInput("");
     setPanel("none");
   }
 
@@ -454,9 +461,27 @@ export function PoolBar({
               </button>
             </div>
             {multiTicketInput && (
-              <p className="mt-1.5 border border-gold-400/30 bg-gold-400/[0.05] px-2.5 py-1.5 font-mono text-[10px] leading-relaxed text-gold-300">
-                ⚠ Vale o bilhete de MAIOR pontuação — todos os outros são eliminados.
-              </p>
+              <>
+                <div className="mt-1.5 flex items-center gap-2">
+                  <span className="font-mono text-[10px] uppercase tracking-widest text-chalk/40">
+                    até
+                  </span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={maxTicketsInput || ""}
+                    onChange={(e) => setMaxTicketsInput(Math.max(0, Number(e.target.value) || 0))}
+                    placeholder="∞"
+                    className="w-16 border border-chalk/20 bg-night-950 px-2 py-1 text-center font-mono text-sm text-chalk outline-none placeholder:text-chalk/30 focus:border-gold-400/60"
+                  />
+                  <span className="font-mono text-[10px] uppercase tracking-widest text-chalk/40">
+                    bilhetes {maxTicketsInput ? "" : "· 0 = ilimitado"}
+                  </span>
+                </div>
+                <p className="mt-1.5 border border-gold-400/30 bg-gold-400/[0.05] px-2.5 py-1.5 font-mono text-[10px] leading-relaxed text-gold-300">
+                  ⚠ Vale o bilhete de MAIOR pontuação — todos os outros são eliminados.
+                </p>
+              </>
             )}
           </div>
 
@@ -490,8 +515,21 @@ export function PoolBar({
             <p className="mt-1 font-mono text-[9px] leading-relaxed text-chalk/35">
               {scoringInput === "points"
                 ? "Ranking pelos pontos de cada variável (trava + mercados)."
-                : "Ranking só pelo resultado final (1X2) da(s) partida(s)."}
+                : "Prêmio dividido igualmente entre quem acertar. Vários jogos: vence quem acertar mais resultados; empate divide."}
             </p>
+          </div>
+
+          {/* Prazo pra apostar (opcional) */}
+          <div>
+            <div className="mb-1.5 font-mono text-[10px] uppercase tracking-widest text-chalk/40">
+              prazo pra apostar <span className="text-chalk/25">· vazio = até o 1º jogo</span>
+            </div>
+            <input
+              type="datetime-local"
+              value={deadlineInput}
+              onChange={(e) => setDeadlineInput(e.target.value)}
+              className="w-full border border-chalk/20 bg-night-950 px-3 py-2 font-mono text-sm text-chalk outline-none [color-scheme:dark] focus:border-gold-400/60"
+            />
           </div>
 
           <div className="flex justify-end">
@@ -643,23 +681,30 @@ export function PoolBar({
                         {brl(prize.pot)}
                       </span>
                     </div>
-                    <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                      {[
-                        { m: "🥇", v: prize.first, l: "1º" },
-                        { m: "🥈", v: prize.second, l: "2º" },
-                        { m: "🥉", v: prize.third, l: "3º" },
-                      ].map((p) => (
-                        <div key={p.l} className="border border-chalk/12 py-2">
-                          <div className="text-lg leading-none">{p.m}</div>
-                          <div className="mt-1 font-mono text-sm font-bold tabular-nums text-chalk">
-                            {brl(p.v)}
+                    {active.scoring === "points" ? (
+                      <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                        {[
+                          { m: "🥇", v: prize.first, l: "1º" },
+                          { m: "🥈", v: prize.second, l: "2º" },
+                          { m: "🥉", v: prize.third, l: "3º" },
+                        ].map((p) => (
+                          <div key={p.l} className="border border-chalk/12 py-2">
+                            <div className="text-lg leading-none">{p.m}</div>
+                            <div className="mt-1 font-mono text-sm font-bold tabular-nums text-chalk">
+                              {brl(p.v)}
+                            </div>
+                            <div className="font-mono text-[9px] uppercase tracking-widest text-chalk/40">
+                              {p.l} lugar
+                            </div>
                           </div>
-                          <div className="font-mono text-[9px] uppercase tracking-widest text-chalk/40">
-                            {p.l} lugar
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-2 border border-chalk/12 px-3 py-2 font-mono text-[10px] leading-relaxed text-chalk-dim">
+                        🤝 Dividido igualmente entre quem acertar o resultado. Com
+                        vários jogos, vence quem acertar mais — empate divide o prêmio.
+                      </p>
+                    )}
                     <p className="mt-2.5 font-mono text-[9px] leading-relaxed text-chalk/30">
                       {brl(active.buyIn)} × {participants} participantes. Valores
                       simulados — sem pagamento real por enquanto.
@@ -693,7 +738,9 @@ export function PoolBar({
                     🎟️{" "}
                     <span className="text-chalk">
                       {active.multiTicket
-                        ? "Vários bilhetes por pessoa"
+                        ? active.maxTickets
+                          ? `Até ${active.maxTickets} bilhetes por pessoa`
+                          : "Vários bilhetes por pessoa"
                         : "1 bilhete por pessoa"}
                     </span>
                     {active.multiTicket && (
@@ -710,6 +757,17 @@ export function PoolBar({
                         ? "por pontos das variáveis"
                         : "só resultado final (1X2)"}
                     </span>
+                    {active.scoring === "result" && (
+                      <span className="text-chalk/45">
+                        {" "}
+                        · prêmio dividido entre quem acerta (mais jogos: vence quem
+                        acerta mais; empate divide)
+                      </span>
+                    )}
+                  </li>
+                  <li>
+                    ⏰ Aposta até:{" "}
+                    <span className="text-chalk">{deadlineLabel(active.deadline)}</span>
                   </li>
                 </ul>
               </div>

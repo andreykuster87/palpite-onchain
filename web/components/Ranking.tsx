@@ -1,6 +1,6 @@
 "use client";
 
-import { brl } from "@/lib/pools";
+import { brl, type PoolScoring } from "@/lib/pools";
 
 export interface RankRow {
   id: string;
@@ -24,6 +24,7 @@ export function Ranking({
   title = "Bolão",
   live = false,
   prize = null,
+  scoring = "points",
 }: {
   rows: RankRow[];
   /** Nome do bolão (fica em destaque no topo). */
@@ -32,6 +33,8 @@ export function Ranking({
   live?: boolean;
   /** Premiação do bolão (mostrada em destaque quando há buy-in). */
   prize?: PrizeInfo | null;
+  /** Modo de disputa — muda como a premiação é mostrada. */
+  scoring?: PoolScoring;
 }) {
   return (
     <div
@@ -70,11 +73,18 @@ export function Ranking({
               {brl(prize.pot)}
             </span>
           </div>
-          <div className="mt-2 flex items-center justify-between gap-1 font-mono text-[11px] tabular-nums text-chalk">
-            <span>🥇 {brl(prize.first)}</span>
-            <span className="text-chalk/50">🥈 {brl(prize.second)}</span>
-            <span className="text-chalk/40">🥉 {brl(prize.third)}</span>
-          </div>
+          {scoring === "points" ? (
+            <div className="mt-2 flex items-center justify-between gap-1 font-mono text-[11px] tabular-nums text-chalk">
+              <span>🥇 {brl(prize.first)}</span>
+              <span className="text-chalk/50">🥈 {brl(prize.second)}</span>
+              <span className="text-chalk/40">🥉 {brl(prize.third)}</span>
+            </div>
+          ) : (
+            <div className="mt-1.5 font-mono text-[9px] leading-relaxed text-chalk/45">
+              🤝 dividido entre quem acertar · mais jogos: vence quem acerta mais
+              (empate divide)
+            </div>
+          )}
         </div>
       )}
 
