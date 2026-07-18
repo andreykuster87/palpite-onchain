@@ -46,7 +46,36 @@ const NOMES = [
   "João",
   "Karina",
   "Lucas",
+  "Marina",
+  "Nando",
+  "Olívia",
+  "Paulo",
+  "Rafa",
+  "Sofia",
 ];
+
+/** Fatia de `count` nomes começando em `offset` (circular) — cada bolão
+ *  mostra um elenco diferente e estável. */
+function namesFrom(offset: number, count: number): string[] {
+  return Array.from(
+    { length: Math.min(count, NOMES.length) },
+    (_, i) => NOMES[(offset + i) % NOMES.length]
+  );
+}
+
+/**
+ * Roster (participantes simulados) de um bolão — ESTÁVEL por `seed` (código do
+ * bolão) e independente de fixture: é a mesma lista em qualquer jogo. Fonte
+ * única de "quem está no bolão", usada tanto pela lista de participantes quanto
+ * pelo ranking (que só varia os palpites por partida). Quando o Supabase entrar,
+ * vira a consulta a `pool_members`.
+ */
+export function poolMembers(seed: string, count?: number): string[] {
+  const rand = mulberry32(seedFromString(`${seed}:members`));
+  const n = count ?? 4 + Math.floor(rand() * 5); // 4–8
+  const offset = Math.floor(rand() * NOMES.length);
+  return namesFrom(offset, n);
+}
 
 // PRNG determinístico (mulberry32) — mantém os adversários estáveis entre
 // reloads para uma mesma fixture.
@@ -123,18 +152,26 @@ export interface TicketOpponent {
  * Adversários no modelo de bilhete-meme. Palpitam em torno das stats de
  * referência com "habilidade" imperfeita: acertam a trava e o lado de cada
  * mercado com probabilidade < 1, gerando um ranking com spread realista.
- * Determinístico por fixture.
+ *
+ * Determinístico por (fixture + bolão): a `seed` (código do bolão) faz cada
+ * liga mostrar um campo estável e distinto — dois dispositivos com o mesmo
+ * código veem os mesmos adversários. Quando o Supabase entrar, esta função é
+ * substituída pelos bilhetes reais dos membros.
  */
 export function ticketOpponentsFor(
   fixture: Fixture,
   markets: Market[],
   refStats: MatchStats,
-  count = 7
+  opts: { seed?: string; count?: number } = {}
 ): TicketOpponent[] {
-  const rand = mulberry32(seedFromString(`${fixture.id}:tickets`));
+  const seed = opts.seed ?? "";
+  // Elenco vem do roster estável do bolão (mesmos nomes em qualquer jogo);
+  // aqui só variamos os PALPITES por partida (semente inclui o fixture.id).
+  const names = poolMembers(seed, opts.count);
+  const rand = mulberry32(seedFromString(`${fixture.id}:${seed}:tickets`));
   const actual = outcomeOf(refStats);
 
-  return NOMES.slice(0, count).map((name, i) => {
+  return names.map((name, i) => {
     // Trava: 60% acerta o resultado real; senão, escolhe qualquer um.
     const result: Outcome = rand() < 0.6 ? actual : OUTCOMES[Math.floor(rand() * 3)];
 
@@ -149,7 +186,7 @@ export function ticketOpponentsFor(
       });
 
     return {
-      id: `topp-${fixture.id}-${i}`,
+      id: `topp-${fixture.id}-${seed}-${i}`,
       name,
       ticket: { result, picks },
       submittedAt: 1_700_000_000_000 + i * 60_000,

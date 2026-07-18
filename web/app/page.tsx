@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { scoreTicket, ticketErrors, rankEntries } from "@/lib/scoring.mjs";
 import type { Ticket, MatchStats } from "@/lib/scoring";
-import { ticketOpponentsFor } from "@/lib/mock";
+import { ticketOpponentsFor, poolMembers } from "@/lib/mock";
 import { COPA_FIXTURES, type CopaFixture } from "@/lib/copa";
 import { catalogFor, catalogMap } from "@/lib/catalog";
 import { commitHash } from "@/lib/hash";
@@ -13,6 +13,25 @@ import { TicketScore } from "@/components/TicketScore";
 import { Ranking, type RankRow } from "@/components/Ranking";
 import { readShareFromHash, buildShareUrl, type SharedTicket } from "@/lib/share";
 import { Prateleira } from "@/components/Prateleira";
+import { PoolBar } from "@/components/PoolBar";
+import {
+  PLATFORM_POOL,
+  listPools,
+  createPool,
+  joinByCode,
+  joinPool,
+  leavePool,
+  buildInviteUrl,
+  readInviteFromHash,
+  type Pool,
+} from "@/lib/pools";
+import { getIdentity, setNickname as persistNickname, type Identity } from "@/lib/identity";
+import {
+  listEntries,
+  enterPool,
+  removeEntriesForPool,
+  type PoolEntry,
+} from "@/lib/entries";
 
 // v4: bilhetes-meme (Ticket) com catálogo por fixture.
 const STORAGE_KEY = "palpite:tickets:v4";
@@ -59,6 +78,21 @@ export default function Home() {
   const [incoming, setIncoming] = useState<SharedTicket | null>(null);
   // fixtureId cujo link foi copiado agora há pouco (feedback "✓ copiado").
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Bolões (local): identidade, lista de bolões e o bolão ativo.
+  const [identity, setIdentity] = useState<Identity>({ userId: "", nickname: "" });
+  const [pools, setPools] = useState<Pool[]>([PLATFORM_POOL]);
+  const [activePoolId, setActivePoolId] = useState<string>(PLATFORM_POOL.id);
+  const [copiedPoolId, setCopiedPoolId] = useState<string | null>(null);
+  // Inscrições de bilhetes em bolões (pagamento simulado por enquanto).
+  const [poolEntries, setPoolEntries] = useState<PoolEntry[]>([]);
+
+  const activePool = pools.find((p) => p.id === activePoolId) ?? PLATFORM_POOL;
+  // Participantes simulados do bolão ativo (roster estável por código).
+  const activeMembers = useMemo(
+    () => poolMembers(activePool.code, activePool.isPlatform ? 11 : undefined),
+    [activePool]
+  );
 
   const fixture = fixtures.find((f) => f.id === fixtureId) ?? fixtures[0];
   const savedEntry = saved[fixture.id];
@@ -126,6 +160,75 @@ export default function Home() {
       /* ignora */
     }
   }, [saved, hydrated]);
+
+  // Hidrata identidade + bolões (local) e trata convite no hash (#p=…).
+  useEffect(() => {
+    setIdentity(getIdentity());
+    const invite = readInviteFromHash();
+    if (invite) {
+      joinPool(invite, Date.now());
+      setActivePoolId(invite.id);
+    }
+    setPools(listPools());
+    setPoolEntries(listEntries());
+    try {
+      const savedActive = localStorage.getItem("palpite:activePool:v1");
+      // Convite tem prioridade sobre o bolão salvo.
+      if (savedActive && !invite) setActivePoolId(savedActive);
+    } catch {
+      /* ignora */
+    }
+  }, []);
+
+  // Persiste o bolão ativo (após hidratar).
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      localStorage.setItem("palpite:activePool:v1", activePoolId);
+    } catch {
+      /* ignora */
+    }
+  }, [activePoolId, hydrated]);
+
+  // ---- Ações de bolão (a camada lib persiste; o estado espelha) ----
+  function handleCreatePool(name: string, buyIn: number) {
+    const pool = createPool(name, buyIn, Date.now());
+    setPools(listPools());
+    setActivePoolId(pool.id);
+  }
+  function handleJoinCode(code: string) {
+    const pool = joinByCode(code, Date.now());
+    setPools(listPools());
+    if (pool) setActivePoolId(pool.id);
+  }
+  function handleLeavePool(id: string) {
+    leavePool(id);
+    setPoolEntries(removeEntriesForPool(id)); // some as inscrições daquele bolão
+    setPools(listPools());
+    if (activePoolId === id) setActivePoolId(PLATFORM_POOL.id);
+  }
+  /** Inscreve o bilhete de uma fixture num bolão (pagamento simulado). */
+  function handleEnterPool(fixtureId: string, poolId: string, ticket: Ticket) {
+    const pool = pools.find((p) => p.id === poolId);
+    setPoolEntries(
+      enterPool(poolId, fixtureId, ticket, pool?.buyIn ?? 0, Date.now())
+    );
+  }
+  function handleSetNickname(name: string) {
+    setIdentity(persistNickname(name));
+  }
+  async function handleCopyInvite(id: string) {
+    const pool = pools.find((p) => p.id === id);
+    if (!pool) return;
+    const url = buildInviteUrl(pool);
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedPoolId(id);
+      window.setTimeout(() => setCopiedPoolId((c) => (c === id ? null : c)), 2200);
+    } catch {
+      window.prompt("Copie o link de convite do bolão:", url);
+    }
+  }
 
   // Ao trocar de fixture, decide o que vai pro rascunho:
   //  1) bilhete já selado desta fixture (não sobrescreve);
@@ -214,11 +317,14 @@ export default function Home() {
 
   const ranking = useMemo<RankRow[]>(() => {
     if (!savedEntry || !finished) return [];
-    const opponents = ticketOpponentsFor(fixture, markets, finished.stats);
+    const opponents = ticketOpponentsFor(fixture, markets, finished.stats, {
+      seed: activePool.code,
+      count: activePool.isPlatform ? 11 : undefined,
+    });
     const all = [
       {
         id: "you",
-        name: "Você",
+        name: identity.nickname || "Você",
         isYou: true,
         ticket: savedEntry.ticket,
         submittedAt: savedEntry.submittedAt,
@@ -250,7 +356,7 @@ export default function Home() {
       valid: r.valid,
       isYou: r.isYou,
     }));
-  }, [savedEntry, finished, fixture, markets, marketsMap]);
+  }, [savedEntry, finished, fixture, markets, marketsMap, activePool, identity.nickname]);
 
   const f = finished?.stats;
   const totalCards = f
@@ -287,6 +393,21 @@ export default function Home() {
           </span>
         </div>
       </header>
+
+      {/* ---------- Barra de bolões ---------- */}
+      <PoolBar
+        pools={pools}
+        activePoolId={activePoolId}
+        identity={identity}
+        members={activeMembers}
+        copiedPoolId={copiedPoolId}
+        onSelect={setActivePoolId}
+        onCreate={handleCreatePool}
+        onJoinCode={handleJoinCode}
+        onLeave={handleLeavePool}
+        onSetNickname={handleSetNickname}
+        onCopyInvite={handleCopyInvite}
+      />
 
       {/* ---------- Seletor de partidas ---------- */}
       <div
@@ -512,18 +633,23 @@ export default function Home() {
               </p>
             </div>
           )}
-          {ranking.length > 0 && <Ranking rows={ranking} />}
+          {ranking.length > 0 && (
+            <Ranking rows={ranking} title={`Ranking · ${activePool.name}`} />
+          )}
         </aside>
       </div>
 
       {/* ---------- Minha prateleira (bilhetes selados, compartilháveis) ---------- */}
       {shelf.length > 0 && (
         <Prateleira
-          entries={shelf}
+          shelf={shelf}
+          pools={pools}
+          poolEntries={poolEntries}
           activeId={fixture.id}
           copiedId={copiedId}
           onOpen={setFixtureId}
           onShare={shareById}
+          onEnter={handleEnterPool}
         />
       )}
 

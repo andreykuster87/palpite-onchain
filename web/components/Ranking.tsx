@@ -8,11 +8,16 @@ export interface RankRow {
   isYou: boolean;
 }
 
-export function Ranking({ rows }: { rows: RankRow[] }) {
+export function Ranking({ rows, title = "Ranking da liga" }: { rows: RankRow[]; title?: string }) {
   return (
     <div className="reveal border border-chalk/12 bg-night-900 p-5" style={{ animationDelay: "0.08s" }}>
-      <div className="mb-3 font-display text-sm uppercase tracking-[0.2em] text-chalk-dim">
-        Ranking da liga
+      <div className="mb-3 flex items-baseline justify-between gap-2">
+        <span className="font-display text-sm uppercase tracking-[0.2em] text-chalk-dim">
+          {title}
+        </span>
+        <span className="font-mono text-[10px] uppercase tracking-widest text-chalk/30">
+          {rows.length} no páreo
+        </span>
       </div>
       <ol>
         {rows.map((r, i) => (

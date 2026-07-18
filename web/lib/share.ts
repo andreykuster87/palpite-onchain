@@ -21,13 +21,13 @@ export const SHARE_HASH_PREFIX = "b=";
 const OUTCOMES: readonly Outcome[] = ["HOME", "DRAW", "AWAY"];
 
 /** UTF-8 → base64url (sem padding), seguro para caracteres acentuados. */
-function toBase64Url(s: string): string {
+export function toBase64Url(s: string): string {
   const b64 = btoa(unescape(encodeURIComponent(s)));
   return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
 /** base64url → UTF-8. */
-function fromBase64Url(s: string): string {
+export function fromBase64Url(s: string): string {
   const b64 = s.replace(/-/g, "+").replace(/_/g, "/");
   const pad = b64.length % 4 ? "=".repeat(4 - (b64.length % 4)) : "";
   return decodeURIComponent(escape(atob(b64 + pad)));
