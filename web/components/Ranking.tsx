@@ -1,5 +1,7 @@
 "use client";
 
+import { brl } from "@/lib/pools";
+
 export interface RankRow {
   id: string;
   name: string;
@@ -10,32 +12,72 @@ export interface RankRow {
   pending?: boolean;
 }
 
+interface PrizeInfo {
+  pot: number;
+  first: number;
+  second: number;
+  third: number;
+}
+
 export function Ranking({
   rows,
-  title = "Ranking da liga",
+  title = "Bolão",
   live = false,
+  prize = null,
 }: {
   rows: RankRow[];
+  /** Nome do bolão (fica em destaque no topo). */
   title?: string;
-  /** Mostra o selo "ao vivo" piscando (ranking simulado sempre visível). */
+  /** Selo "ao vivo" piscando (ranking simulado sempre visível). */
   live?: boolean;
+  /** Premiação do bolão (mostrada em destaque quando há buy-in). */
+  prize?: PrizeInfo | null;
 }) {
   return (
-    <div className="reveal border border-chalk/12 bg-night-900 p-5" style={{ animationDelay: "0.08s" }}>
-      <div className="mb-3 flex items-baseline justify-between gap-2">
-        <span className="font-display text-sm uppercase tracking-[0.2em] text-chalk-dim">
-          {title}
-        </span>
+    <div
+      className="reveal border-2 border-gold-400/40 bg-night-900 p-5 shadow-[5px_5px_0_rgba(0,0,0,0.45)]"
+      style={{ animationDelay: "0.08s" }}
+    >
+      {/* Cabeçalho: nome do bolão em destaque */}
+      <div className="mb-3 flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="font-mono text-[10px] uppercase tracking-[0.3em] text-gold-400">
+            🏆 Ranking do bolão
+          </div>
+          <div className="mt-0.5 truncate font-display text-xl uppercase leading-none tracking-wide text-chalk">
+            {title}
+          </div>
+        </div>
         {live ? (
-          <span className="blink font-mono text-[10px] uppercase tracking-widest text-grass-400">
+          <span className="blink shrink-0 font-mono text-[10px] uppercase tracking-widest text-grass-400">
             ● ao vivo
           </span>
         ) : (
-          <span className="font-mono text-[10px] uppercase tracking-widest text-chalk/30">
+          <span className="shrink-0 font-mono text-[10px] uppercase tracking-widest text-chalk/30">
             {rows.length} no páreo
           </span>
         )}
       </div>
+
+      {/* Premiação em destaque (só quando o bolão tem buy-in) */}
+      {prize && prize.pot > 0 && (
+        <div className="mb-4 border border-gold-400/30 bg-gold-400/[0.05] px-3 py-2.5">
+          <div className="flex items-center justify-between">
+            <span className="font-mono text-[9px] uppercase tracking-[0.25em] text-chalk-dim">
+              premiação
+            </span>
+            <span className="font-display text-2xl leading-none tabular-nums text-gold-400 [text-shadow:0_0_18px_rgba(255,196,0,0.4)]">
+              {brl(prize.pot)}
+            </span>
+          </div>
+          <div className="mt-2 flex items-center justify-between gap-1 font-mono text-[11px] tabular-nums text-chalk">
+            <span>🥇 {brl(prize.first)}</span>
+            <span className="text-chalk/50">🥈 {brl(prize.second)}</span>
+            <span className="text-chalk/40">🥉 {brl(prize.third)}</span>
+          </div>
+        </div>
+      )}
+
       <ol>
         {rows.map((r, i) => (
           <li

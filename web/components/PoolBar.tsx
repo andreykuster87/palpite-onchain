@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { type Pool, BUY_IN_OPTIONS, moneyLabel } from "@/lib/pools";
+import { type Pool, BUY_IN_OPTIONS, moneyLabel, brl, prizeBreakdown } from "@/lib/pools";
 import type { Identity } from "@/lib/identity";
 import { Ranking, type RankRow } from "@/components/Ranking";
 
@@ -25,18 +25,6 @@ interface PoolBarProps {
   onCopyInvite: (poolId: string) => void;
 }
 
-/** Prêmio total (buy-in × participantes) e divisão 🥇50/🥈30/🥉20 (simulado). */
-function prizeBreakdown(buyIn: number, participants: number) {
-  const pot = buyIn * participants;
-  return {
-    pot,
-    first: Math.floor(pot * 0.5),
-    second: Math.floor(pot * 0.3),
-    third: Math.floor(pot * 0.2),
-  };
-}
-
-const brl = (n: number) => `R$ ${n.toLocaleString("pt-BR")}`;
 
 type Panel = "none" | "menu" | "create" | "join" | "nick" | "members";
 
@@ -550,7 +538,7 @@ export function PoolBar({
 
               {/* Ranking */}
               <div>
-                <Ranking rows={standings} title="Ranking" live={live} />
+                <Ranking rows={standings} title={active.name} live={live} />
               </div>
 
               {/* Participantes */}

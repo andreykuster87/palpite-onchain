@@ -33,6 +33,20 @@ export function moneyLabel(v: number): string {
   return v > 0 ? `R$ ${v}` : "Grátis";
 }
 
+/** Formata reais com separador de milhar: "R$ 1.200". */
+export const brl = (n: number) => `R$ ${n.toLocaleString("pt-BR")}`;
+
+/** Prêmio total (buy-in × participantes) e divisão 🥇50/🥈30/🥉20 (simulado). */
+export function prizeBreakdown(buyIn: number, participants: number) {
+  const pot = buyIn * participants;
+  return {
+    pot,
+    first: Math.floor(pot * 0.5),
+    second: Math.floor(pot * 0.3),
+    third: Math.floor(pot * 0.2),
+  };
+}
+
 const KEY = "palpite:pools:v1";
 
 /** Bolão público único da plataforma. Fixo (não é criado nem removível). */

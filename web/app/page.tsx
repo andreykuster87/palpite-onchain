@@ -24,6 +24,7 @@ import {
   leavePool,
   buildInviteUrl,
   readInviteFromHash,
+  prizeBreakdown,
   type Pool,
 } from "@/lib/pools";
 import { getIdentity, setNickname as persistNickname, type Identity } from "@/lib/identity";
@@ -753,32 +754,39 @@ export default function Home() {
 
         {/* ---------- Coluna lateral ---------- */}
         <aside className="space-y-6">
+          {/* Ranking do bolão em destaque no topo (nome + premiação + posições) */}
+          <Ranking
+            rows={ranking}
+            title={activePool.name}
+            live={rankingSimulated}
+            prize={
+              activePool.buyIn > 0
+                ? prizeBreakdown(activePool.buyIn, activeMembers.length + 1)
+                : null
+            }
+          />
+          {/* Detalhe da sua pontuação (abaixo do ranking) */}
           {isFinal && score ? (
             <TicketScore score={score} markets={markets} />
           ) : (
             <div
-              className="reveal border border-dashed border-chalk/15 p-8 text-center"
+              className="reveal border border-dashed border-chalk/15 p-6 text-center"
               style={{ animationDelay: "0.18s" }}
             >
               <div
-                className={`font-display text-lg uppercase tracking-[0.2em] ${
+                className={`font-display text-base uppercase tracking-[0.2em] ${
                   isLive ? "blink text-grass-400" : "text-chalk/30"
                 }`}
               >
-                {isLive ? `● Jogo ao vivo · ${lm}'` : "Aguardando"}
+                {isLive ? `● Jogo ao vivo · ${lm}'` : "Aguardando seu palpite"}
               </div>
               <p className="mt-2 font-mono text-[11px] leading-relaxed text-chalk/35">
                 {isLive
-                  ? "Os palpites vão confirmando durante a partida. No apito final, sua pontuação e o ranking."
-                  : "Monte e sele seu palpite para acompanhar o jogo ao vivo e ver sua pontuação e o ranking."}
+                  ? "Os palpites vão confirmando durante a partida. No apito final, sua pontuação detalhada."
+                  : "Monte e sele seu palpite para acompanhar o jogo ao vivo e disputar o ranking."}
               </p>
             </div>
           )}
-          <Ranking
-            rows={ranking}
-            title={`Ranking · ${activePool.name}`}
-            live={rankingSimulated}
-          />
         </aside>
       </div>
 
