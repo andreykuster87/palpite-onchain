@@ -1,20 +1,27 @@
 # Roadmap — 4Line On-Chain · build dos bilhetes-meme
 
-_Atualizado em 2026-07-17. **Decisão: Opção 2** — os bilhetes-meme viram o MVP
-jogável (não só visão de vídeo). Este doc é o plano de execução da próxima
-sessão._
+_Atualizado em 2026-07-18. **Fase A CONCLUÍDA e verificada** (bilhete-meme
+jogável no app, reorganizado em 📊 Estatísticas + 🤡 Zoeira-bônus). Este doc é o
+plano da PRÓXIMA sessão: **bilhetes compartilháveis** → Fase B (craques) → vídeo._
 
 ---
 
 ## ▶️ FRASE PRA INICIAR A PRÓXIMA SESSÃO (cole isto)
 
-> Retomar o **4Line On-Chain** (pasta `C:\Coach`). Decisão fechada: **Opção 2** —
-> implementar os **bilhetes-meme** como MVP jogável. Ler
-> `docs/05-roadmap-proximas-sessoes.md` e começar pela **Fase A**. O app Next.js
-> está em `web/`, já deployado (4line-onchain.vercel.app) e com o token TxLINE em
-> `web/.env.local` (devnet, funcionando). Reusar o motor `web/lib/scoring.mjs` e
-> os endpoints já prontos (`/api/fixtures`, `/api/scores/[id]`). NÃO quebrar o que
-> está no ar. Deadline do hackathon: 18/07 23:59.
+> Retomar o **4Line On-Chain** (pasta `C:\Coach`). **Fase A concluída e
+> verificada** — bilhete-meme jogável: setores **📊 Estatísticas** + **🤡
+> Zoeira-bônus (+3 no acerto, 0 no erro)**, motor `scoreTicket` em
+> `web/lib/scoring.mjs`, catálogo `web/lib/catalog.ts`, telas
+> `TicketBuilder`/`SealedTicket`/`TicketScore` (`web/app/page.tsx` orquestra).
+> ⚠️ **Tudo no working tree, NÃO commitado** — decidir commit/deploy no começo
+> (push em `master` faz auto-deploy na Vercel). **Prioridade desta sessão:
+> (1) BILHETES COMPARTILHÁVEIS** — botão que gera um link codificando o bilhete
+> (fixture + picks) pra outro usuário abrir e fazer a MESMA aposta; MVP **sem
+> backend** (encode no hash da URL, pré-carrega o builder). Depois: (2) **Fase B**
+> (craques — estender `web/lib/txline-adapter.mjs` p/ PlayerStats + Lineups),
+> (3) **vídeo + submissão**. Ler `docs/05-roadmap-proximas-sessoes.md`. App em
+> `web/`, deploy `4line-onchain.vercel.app`, token em `web/.env.local` (devnet).
+> **NÃO quebrar o que está no ar.**
 
 ---
 
@@ -79,9 +86,18 @@ oráculo).
 
 ## O QUE CONSTRUIR — em fases (por risco/prazo)
 
-### 🔴 Fase A — Bilhete-meme jogável (MVP crítico, só mercados de TIME)
-_Entrega a experiência de bilhete-meme reusando o que já existe. Sem jogador
-ainda, pra não depender de escalação nem de mudanças no adapter._
+### ✅ Fase A — Bilhete-meme jogável — CONCLUÍDA (18/07)
+_Entregue e verificado no browser contra o oráculo ao vivo. Ainda **não
+commitado/deployado**._ Feito: motor v2 `scoreTicket`/`marketHappened`/
+`ticketErrors` + camadas `LAYER_POINTS` (fácil +5/−3, média +8/−3, difícil
++15/−5, **zoeira-bônus +3/0**) em `scoring.mjs` (+ tipos em `.d.ts`); catálogo
+`web/lib/catalog.ts` (setores 📊 Estatísticas + 🤡 Zoeira, nomes dos times
+tecidos); componentes `TicketBuilder`/`SealedTicket`/`TicketScore`; `page.tsx`
+reescrito (storage `palpite:tickets:v4`); testes `scoring.ticket.test.mjs`
+(16/16). Sondado ao vivo: oráculo só entrega statKeys 1–8 (sem chute a gol);
+dados por período (1º/2ºT) existem = enriquecimento futuro barato.
+
+_Plano original abaixo (referência do que foi entregue):_
 
 1. **Catálogo de variáveis** por fixture — nova estrutura (ex.: `web/lib/catalog.ts`):
    cada mercado = `{ id, setor, memeNome, emoji, camada, resolve: {tipo, stat,
@@ -96,6 +112,26 @@ ainda, pra não depender de escalação nem de mudanças no adapter._
    (Base visual: mockup `bilhete_selado`.)
 5. **Ligar ao apito/replay** já existente pra resolver e pontuar.
 6. Rodar testes + deploy. **Checkpoint: app com bilhete-meme jogável no ar.**
+
+### 🔴 Fase A.5 — Bilhetes compartilháveis (PRIORIDADE da próxima sessão)
+_Pedido do Andrey: o usuário pode **deixar/compartilhar o seu bilhete** pra que
+outro interessado faça a **mesma aposta**._
+
+**MVP sem backend (fazer primeiro):**
+1. Botão **"Compartilhar bilhete"** na tela do bilhete selado
+   (`SealedTicket`/`page.tsx`) → gera um link que **codifica o palpite**:
+   `fixtureId` + `ticket` (`{result, picks}`) no **hash da URL**
+   (ex.: `/#b=<base64(JSON)>`). Só o palpite viaja — nada sensível.
+2. Ao abrir um link com `#b=…`, o app **decodifica**, seleciona a fixture e
+   **pré-carrega o builder** com a mesma trava e os mesmos mercados/lados; o
+   usuário revisa e **sela o SEU** bilhete (não altera o do outro).
+3. UX: rótulo "bilhete copiado de um amigo" + botão "copiar link" (clipboard).
+   Opcional: apelido local do autor.
+
+**Versão completa (Supabase, futuro — casa com a Fase C):** pool de bilhetes
+públicos ("bilhetes da galera"), copiar com 1 clique, contagem de quantos
+copiaram → alimenta o **% da galera** e vira o embrião das **ligas
+compartilhadas**.
 
 ### 🟠 Fase B — Craques (variáveis por jogador)
 1. Estender o **adapter** (`web/lib/txline-adapter.mjs`) pra extrair `PlayerStats`

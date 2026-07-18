@@ -169,6 +169,164 @@ export function scoreCartela(cartela, match, config = DEFAULT_CONFIG) {
   return { valid: true, points, breakdown };
 }
 
+/* ===================================================================== *
+ *  MOTOR v2 — bilhetes-meme (Fase A)                                    *
+ *                                                                       *
+ *  O usuário monta o próprio bilhete escolhendo mercados-meme (cada     *
+ *  zoeira por cima, um stat real do TxLINE por baixo). Mantém a mesma   *
+ *  TRAVA 1X2 e o mesmo formato de over/under — só que agora as          *
+ *  variáveis vêm de um catálogo por camada de dificuldade, e cada       *
+ *  mercado resolve contra uma métrica derivada de MatchStats.           *
+ * ===================================================================== */
+
+/**
+ * Camadas de dificuldade → pontuação (acerto / erro). A assimetria
+ * recompensa habilidade; "zoeira" é puro sabor e não pontua.
+ * @typedef {'facil'|'media'|'dificil'|'zoeira'} Camada
+ */
+export const LAYER_POINTS = {
+  facil: { hit: 5, miss: 3 },
+  media: { hit: 8, miss: 3 },
+  dificil: { hit: 15, miss: 5 },
+  // Zoeira é "aposta bônus": soma de leve no acerto e NUNCA penaliza no erro.
+  zoeira: { hit: 3, miss: 0 },
+};
+
+/**
+ * Métricas derivadas de MatchStats que os mercados-meme resolvem.
+ * Predicados booleanos retornam 0/1 para caírem no mesmo comparador.
+ * @type {Record<string, (m: MatchStats) => number>}
+ */
+export const MARKET_METRICS = {
+  totalGoals: (m) => m.goalsHome + m.goalsAway,
+  totalCards: (m) =>
+    (m.yellowHome ?? 0) + (m.yellowAway ?? 0) + (m.redHome ?? 0) + (m.redAway ?? 0),
+  totalCorners: (m) => (m.cornersHome ?? 0) + (m.cornersAway ?? 0),
+  goalsHome: (m) => m.goalsHome,
+  goalsAway: (m) => m.goalsAway,
+  redsTotal: (m) => (m.redHome ?? 0) + (m.redAway ?? 0),
+  yellowsTotal: (m) => (m.yellowHome ?? 0) + (m.yellowAway ?? 0),
+  bothScore: (m) => (m.goalsHome > 0 && m.goalsAway > 0 ? 1 : 0),
+  goalDiff: (m) => Math.abs(m.goalsHome - m.goalsAway),
+};
+
+/**
+ * Regra de resolução de um mercado-meme (dado puro, no catálogo).
+ * @typedef {Object} MarketResolve
+ * @property {string} metric  chave em MARKET_METRICS
+ * @property {'over'|'under'|'atLeast'|'atMost'|'is'} cmp
+ * @property {number} line
+ */
+
+/**
+ * O mercado "aconteceu"?  Interpreta o predicado sobre a métrica.
+ * @param {MarketResolve} resolve
+ * @param {MatchStats} stats
+ * @returns {boolean}
+ */
+export function marketHappened(resolve, stats) {
+  const fn = MARKET_METRICS[resolve.metric];
+  if (!fn) throw new Error(`métrica desconhecida: ${resolve.metric}`);
+  const v = fn(stats);
+  switch (resolve.cmp) {
+    case 'over':
+      return v > resolve.line;
+    case 'under':
+      return v < resolve.line;
+    case 'atLeast':
+      return v >= resolve.line;
+    case 'atMost':
+      return v <= resolve.line;
+    case 'is':
+      return v === resolve.line;
+    default:
+      throw new Error(`comparador desconhecido: ${resolve.cmp}`);
+  }
+}
+
+/**
+ * Escolha do usuário sobre um mercado do catálogo. `side === 'SIM'` = o
+ * usuário aposta que o mercado acontece; `'NAO'` = aposta que não.
+ * @typedef {Object} TicketPick
+ * @property {string} marketId
+ * @property {'SIM'|'NAO'} side
+ */
+
+/**
+ * Bilhete-meme: a trava 1X2 + os mercados escolhidos.
+ * @typedef {Object} Ticket
+ * @property {Outcome} result
+ * @property {TicketPick[]} picks
+ */
+
+/**
+ * @typedef {Object} TicketBreakdownItem
+ * @property {string} marketId
+ * @property {boolean} hit
+ * @property {boolean} [happened]
+ * @property {'SIM'|'NAO'} [side]
+ * @property {boolean} scored     false para mercados de zoeira (não pontua)
+ * @property {number} delta
+ */
+
+/**
+ * Pontua um bilhete-meme contra o resultado final.
+ *
+ * Mesma TRAVA 1X2 do scoreCartela: errou o resultado, zera. Com a trava
+ * validada, cada mercado escolhido acerta/erra pela sua camada. Mercados
+ * de zoeira entram no bilhete mas não movem o placar.
+ *
+ * @param {Ticket} ticket
+ * @param {MatchStats} stats
+ * @param {Record<string, {camada:Camada, resolve:MarketResolve}>} markets  catálogo id→mercado da fixture
+ * @param {ScoringConfig} [config]
+ * @returns {{ valid:boolean, points:number, breakdown:TicketBreakdownItem[] }}
+ */
+export function scoreTicket(ticket, stats, markets, config = DEFAULT_CONFIG) {
+  const actual = outcomeOf(stats);
+
+  let gatePass = ticket.result === actual;
+  if (!config.gateIncludesDraw && actual === 'DRAW') gatePass = false;
+  if (!gatePass) {
+    return {
+      valid: false,
+      points: 0,
+      breakdown: [{ marketId: 'result', hit: false, scored: true, delta: 0 }],
+    };
+  }
+
+  /** @type {TicketBreakdownItem[]} */
+  const breakdown = [{ marketId: 'result', hit: true, scored: true, delta: 0 }];
+  let points = 0;
+
+  for (const pick of ticket.picks ?? []) {
+    const market = markets[pick.marketId];
+    if (!market) continue; // catálogo mudou — ignora silenciosamente
+    const happened = marketHappened(market.resolve, stats);
+    const betYes = pick.side === 'SIM';
+    const hit = happened === betYes;
+    const layer = LAYER_POINTS[market.camada] ?? LAYER_POINTS.facil;
+    // Um mercado "pontua" se pode mover o placar (acerto ou penalidade > 0).
+    const scored = layer.hit !== 0 || layer.miss !== 0;
+    const delta = hit ? layer.hit : layer.miss === 0 ? 0 : -layer.miss;
+    points += delta;
+    breakdown.push({ marketId: pick.marketId, hit, happened, side: pick.side, scored, delta });
+  }
+
+  if (config.floorAtZero && points < 0) points = 0;
+  return { valid: true, points, breakdown };
+}
+
+/**
+ * Nº de erros que custaram pontos — usado no desempate do ranking. Erros de
+ * zoeira (bônus, penalidade 0) não contam, pois não tiram pontos.
+ * @param {{ breakdown: TicketBreakdownItem[] }} scored
+ * @returns {number}
+ */
+export function ticketErrors(scored) {
+  return scored.breakdown.filter((b) => !b.hit && b.delta < 0).length;
+}
+
 /**
  * Ordena cartelas para o ranking de uma liga.
  * Desempate: maior pontuação → menor nº de erros → submissão mais antiga.

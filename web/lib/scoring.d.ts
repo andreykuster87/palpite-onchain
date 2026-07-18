@@ -74,3 +74,51 @@ export function scoreCartela(
 export function rankEntries<
   T extends { points: number; valid: boolean; errors: number; submittedAt: number }
 >(entries: T[]): T[];
+
+/* ---------- Motor v2: bilhetes-meme ---------- */
+
+export type Camada = "facil" | "media" | "dificil" | "zoeira";
+export type Cmp = "over" | "under" | "atLeast" | "atMost" | "is";
+
+export interface MarketResolve {
+  metric: string;
+  cmp: Cmp;
+  line: number;
+}
+
+export interface TicketPick {
+  marketId: string;
+  side: "SIM" | "NAO";
+}
+
+export interface Ticket {
+  result: Outcome;
+  picks: TicketPick[];
+}
+
+export interface TicketBreakdownItem {
+  marketId: string;
+  hit: boolean;
+  happened?: boolean;
+  side?: "SIM" | "NAO";
+  scored: boolean;
+  delta: number;
+}
+
+export interface TicketScoreResult {
+  valid: boolean;
+  points: number;
+  breakdown: TicketBreakdownItem[];
+}
+
+export const LAYER_POINTS: Record<Camada, { hit: number; miss: number }>;
+export const MARKET_METRICS: Record<string, (m: MatchStats) => number>;
+
+export function marketHappened(resolve: MarketResolve, stats: MatchStats): boolean;
+export function scoreTicket(
+  ticket: Ticket,
+  stats: MatchStats,
+  markets: Record<string, { camada: Camada; resolve: MarketResolve }>,
+  config?: ScoringConfig
+): TicketScoreResult;
+export function ticketErrors(scored: { breakdown: TicketBreakdownItem[] }): number;

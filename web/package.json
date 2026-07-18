@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test:scoring": "node --test lib/scoring.test.mjs"
+    "test:scoring": "node --test lib/scoring.test.mjs lib/scoring.ticket.test.mjs"
   },
   "dependencies": {
     "next": "15.5.20",

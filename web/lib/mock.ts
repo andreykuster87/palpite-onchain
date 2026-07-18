@@ -4,7 +4,9 @@
 // entram na Fase Supabase. Os adversários palpitam de forma plausível em
 // torno das stats de referência da partida, com erros realistas.
 
-import type { Cartela, MatchStats, Outcome, OUPick } from "./scoring";
+import type { Cartela, MatchStats, Outcome, OUPick, Ticket } from "./scoring";
+import { marketHappened, outcomeOf } from "./scoring.mjs";
+import type { Market } from "./catalog";
 
 export interface MarketLines {
   totalGoals: number;
@@ -105,6 +107,51 @@ export function opponentsFor(
       id: `opp-${fixture.id}-${i}`,
       name,
       cartela,
+      submittedAt: 1_700_000_000_000 + i * 60_000,
+    };
+  });
+}
+
+export interface TicketOpponent {
+  id: string;
+  name: string;
+  ticket: Ticket;
+  submittedAt: number;
+}
+
+/**
+ * Adversários no modelo de bilhete-meme. Palpitam em torno das stats de
+ * referência com "habilidade" imperfeita: acertam a trava e o lado de cada
+ * mercado com probabilidade < 1, gerando um ranking com spread realista.
+ * Determinístico por fixture.
+ */
+export function ticketOpponentsFor(
+  fixture: Fixture,
+  markets: Market[],
+  refStats: MatchStats,
+  count = 7
+): TicketOpponent[] {
+  const rand = mulberry32(seedFromString(`${fixture.id}:tickets`));
+  const actual = outcomeOf(refStats);
+
+  return NOMES.slice(0, count).map((name, i) => {
+    // Trava: 60% acerta o resultado real; senão, escolhe qualquer um.
+    const result: Outcome = rand() < 0.6 ? actual : OUTCOMES[Math.floor(rand() * 3)];
+
+    const picks = markets
+      .filter(() => rand() < 0.55) // opta por ~metade dos mercados
+      .map((m) => {
+        const happened = marketHappened(m.resolve, refStats);
+        // 62% "habilidade": alinha o lado com o que aconteceu.
+        const correct = rand() < 0.62;
+        const side: "SIM" | "NAO" = (happened === correct ? "SIM" : "NAO");
+        return { marketId: m.id, side };
+      });
+
+    return {
+      id: `topp-${fixture.id}-${i}`,
+      name,
+      ticket: { result, picks },
       submittedAt: 1_700_000_000_000 + i * 60_000,
     };
   });
