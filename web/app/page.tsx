@@ -32,8 +32,10 @@ import {
   listEntries,
   enterPool,
   removeEntriesForPool,
+  poolIdsForFixture,
   type PoolEntry,
 } from "@/lib/entries";
+import { EnterPoolsModal } from "@/components/EnterPoolsModal";
 
 // v4: bilhetes-meme (Ticket) com catálogo por fixture.
 const STORAGE_KEY = "palpite:tickets:v4";
@@ -97,6 +99,8 @@ export default function Home() {
   const [poolEntries, setPoolEntries] = useState<PoolEntry[]>([]);
   // Guia "Como jogar" — dispensável (some depois que a pessoa entende).
   const [guideDismissed, setGuideDismissed] = useState(false);
+  // Ao selar: fixtureId cujo bilhete está escolhendo bolões (abre o modal).
+  const [enterFor, setEnterFor] = useState<string | null>(null);
 
   const activePool = pools.find((p) => p.id === activePoolId) ?? PLATFORM_POOL;
   // Participantes simulados do bolão ativo (roster estável por código).
@@ -320,7 +324,29 @@ export default function Home() {
       ...s,
       [fixture.id]: { ticket: draft, submittedAt: Date.now() },
     }));
-    playLive(fixture); // sela → começa a partida ao vivo
+    setEnterFor(fixture.id); // sela → escolher em qual(is) bolão(ões) concorrer
+  }
+
+  /** Confirma a inscrição do bilhete em vários bolões (pagamento único simulado). */
+  function confirmEnterPools(poolIds: string[]) {
+    const fid = enterFor;
+    if (!fid) return;
+    const ticket = saved[fid]?.ticket ?? draft;
+    const now = Date.now();
+    let entries = poolEntries;
+    for (const pid of poolIds) {
+      const pool = pools.find((p) => p.id === pid);
+      entries = enterPool(pid, fid, ticket, pool?.buyIn ?? 0, now);
+    }
+    setPoolEntries(entries);
+    setEnterFor(null);
+    playLive(fixture); // depois de inscrever, a bola rola
+  }
+
+  /** Fecha o modal sem inscrever e começa a partida (só assistir). */
+  function skipEnterPools() {
+    setEnterFor(null);
+    playLive(fixture);
   }
 
   /** Gera o link de um bilhete selado (por fixture) e copia pro clipboard. */
@@ -818,6 +844,17 @@ export default function Home() {
           onOpen={setFixtureId}
           onShare={shareById}
           onEnter={handleEnterPool}
+        />
+      )}
+
+      {/* Ao selar: escolher em qual(is) bolão(ões) concorrer (pagamento único) */}
+      {enterFor && (
+        <EnterPoolsModal
+          pools={pools}
+          alreadyIn={poolIdsForFixture(poolEntries, enterFor)}
+          preselect={[activePoolId]}
+          onConfirm={confirmEnterPools}
+          onSkip={skipEnterPools}
         />
       )}
 

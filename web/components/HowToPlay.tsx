@@ -47,7 +47,7 @@ const STEPS = [
     key: "bilhetes",
     icon: "🏆",
     title: "Concorra nos bolões",
-    desc: "Em “Meus bilhetes”, abra o bilhete e escolha o(s) bolão(ões). O mesmo bilhete pode disputar vários!",
+    desc: "Ao selar, marque em qual(is) bolão(ões) concorrer — pode vários, num pagamento só. (Ou depois, em Meus bilhetes.)",
   },
 ];
 
