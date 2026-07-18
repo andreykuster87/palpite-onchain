@@ -1,10 +1,9 @@
 "use client";
 
-import type { Ticket } from "@/lib/scoring";
+import type { Ticket, Camada } from "@/lib/scoring";
 import { LAYER_POINTS } from "@/lib/scoring.mjs";
 import type { CopaFixture } from "@/lib/copa";
 import { catalogFor, catalogMap } from "@/lib/catalog";
-import { OUTCOME_LABEL } from "@/lib/labels";
 
 export interface ShelfEntry {
   fixtureId: string;
@@ -23,8 +22,17 @@ interface Props {
   onShare: (fixtureId: string) => void;
 }
 
-const resultShort = (fx: CopaFixture, r: Ticket["result"]) =>
-  r === "HOME" ? fx.home.short : r === "AWAY" ? fx.away.short : "X";
+interface PickChip {
+  emoji: string;
+  nome: string;
+  side: "SIM" | "NAO";
+  camada: Camada;
+}
+
+function travaText(fx: CopaFixture, r: Ticket["result"]): string {
+  if (r === "DRAW") return "Empate";
+  return `${r === "HOME" ? fx.home.short : fx.away.short} vence`;
+}
 
 function fmtDate(ms: number): string {
   return new Date(ms).toLocaleDateString("pt-BR", {
@@ -33,18 +41,22 @@ function fmtDate(ms: number): string {
   });
 }
 
-/** Pontos máximos em jogo do bilhete (soma dos acertos por camada). */
-function pointsInPlay(entry: ShelfEntry): { count: number; potencial: number } {
+/** Resumo do bilhete: chips dos palpites + pontos máximos em jogo. */
+function summarize(entry: ShelfEntry): {
+  count: number;
+  potencial: number;
+  picks: PickChip[];
+} {
   const map = catalogMap(catalogFor(entry.fixture));
-  let count = 0;
+  const picks: PickChip[] = [];
   let potencial = 0;
   for (const p of entry.ticket.picks) {
     const m = map[p.marketId];
     if (!m) continue;
-    count += 1;
     potencial += LAYER_POINTS[m.camada].hit;
+    picks.push({ emoji: m.emoji, nome: m.nome, side: p.side, camada: m.camada });
   }
-  return { count, potencial };
+  return { count: picks.length, potencial, picks };
 }
 
 export function Prateleira({
@@ -55,87 +67,166 @@ export function Prateleira({
   onShare,
 }: Props) {
   return (
-    <section className="reveal mt-12" style={{ animationDelay: "0.1s" }}>
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-2 border-b-2 border-dashed border-chalk/12 pb-3">
-        <div className="flex items-center gap-2">
-          <span className="text-lg leading-none">🎟️</span>
-          <h2 className="font-display text-xl uppercase tracking-[0.18em] text-chalk">
-            Minha prateleira
-          </h2>
-          <span className="font-mono text-[11px] uppercase tracking-widest text-chalk/35">
-            {entries.length} bilhete{entries.length === 1 ? "" : "s"}
+    <section className="reveal mt-14" style={{ animationDelay: "0.1s" }}>
+      {/* ---------- Cabeçalho da seção ---------- */}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center border-2 border-gold-400 bg-gold-400/10 text-2xl shadow-[4px_4px_0_rgba(0,0,0,0.5)]">
+            🎟️
+          </div>
+          <div>
+            <h2 className="font-display text-3xl uppercase leading-none tracking-[0.12em] text-chalk">
+              Minha prateleira
+            </h2>
+            <p className="mt-1 max-w-md font-mono text-[11px] leading-relaxed text-chalk-dim">
+              Seus bilhetes selados ficam aqui. Toque em{" "}
+              <span className="text-gold-400">Link</span> e mande pra alguém — quem
+              abrir faz o mesmo bilhete.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 border-2 border-chalk/15 bg-night-900 px-4 py-2">
+          <span className="font-display text-3xl leading-none tabular-nums text-gold-400">
+            {entries.length}
+          </span>
+          <span className="font-mono text-[10px] uppercase leading-tight tracking-widest text-chalk-dim">
+            bilhete
+            {entries.length === 1 ? "" : "s"}
+            <br />
+            na prateleira
           </span>
         </div>
-        <p className="font-mono text-[11px] leading-relaxed text-chalk/40">
-          Seus bilhetes selados ficam guardados aqui. Compartilhe o link — quem
-          abrir faz o mesmo bilhete.
-        </p>
       </div>
 
-      <div className="flex gap-3 overflow-x-auto pb-2">
+      {/* ---------- Trilho de bilhetes ---------- */}
+      <div className="flex snap-x gap-4 overflow-x-auto pb-3">
         {entries.map((e) => {
           const active = e.fixtureId === activeId;
-          const { count, potencial } = pointsInPlay(e);
+          const { count, potencial, picks } = summarize(e);
           const copied = copiedId === e.fixtureId;
+          const shown = picks.slice(0, 6);
+          const extra = picks.length - shown.length;
           return (
-            <div
+            <article
               key={e.fixtureId}
-              className={`flex w-64 shrink-0 flex-col justify-between border bg-night-900/70 p-4 transition ${
+              className={`flex w-[19.5rem] shrink-0 snap-start flex-col border-2 bg-night-800 transition ${
                 active
-                  ? "border-gold-400 shadow-[4px_4px_0_rgba(0,0,0,0.5)]"
-                  : "border-chalk/12 hover:border-chalk/30"
+                  ? "border-gold-400 shadow-[6px_6px_0_rgba(0,0,0,0.55)]"
+                  : "border-chalk/12 shadow-[4px_4px_0_rgba(0,0,0,0.4)] hover:-translate-y-0.5 hover:border-chalk/40"
               }`}
             >
-              <div>
-                <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-widest text-chalk/35">
+              {/* Faixa do confronto */}
+              <div
+                className={`px-4 pb-3 pt-2.5 ${
+                  active ? "bg-gold-400 text-night-950" : "bg-night-700 text-chalk"
+                }`}
+              >
+                <div
+                  className={`flex justify-between font-mono text-[10px] uppercase tracking-widest ${
+                    active ? "text-night-950/70" : "text-chalk/40"
+                  }`}
+                >
                   <span>{e.fixture.stage}</span>
                   <span>{fmtDate(e.submittedAt)}</span>
                 </div>
-                <div className="mt-1.5 font-display text-2xl uppercase leading-none tracking-wide text-chalk">
-                  {e.fixture.home.short}{" "}
-                  <span className="text-chalk/30">×</span>{" "}
+                <div className="mt-1 font-display text-[2rem] uppercase leading-none tracking-wide">
+                  {e.fixture.home.short}
+                  <span className={active ? "text-night-950/40" : "text-chalk/25"}>
+                    {" × "}
+                  </span>
                   {e.fixture.away.short}
                 </div>
+              </div>
 
-                {/* Trava + tally */}
-                <div className="mt-3 flex items-center justify-between gap-2 border-t border-dotted border-chalk/12 pt-3">
-                  <div>
-                    <div className="font-mono text-[9px] uppercase tracking-widest text-gold-400">
-                      Trava
-                    </div>
-                    <div className="font-display text-sm uppercase tracking-wide text-chalk">
-                      {resultShort(e.fixture, e.ticket.result)}{" "}
-                      <span className="text-[10px] text-chalk/40">
-                        {OUTCOME_LABEL[e.ticket.result]}
+              {/* Picote */}
+              <div className="relative flex items-center">
+                <span className="-ml-2.5 h-5 w-5 rounded-full bg-night-950" />
+                <span className="flex-1 border-t-2 border-dashed border-chalk/20" />
+                <span className="-mr-2.5 h-5 w-5 rounded-full bg-night-950" />
+              </div>
+
+              {/* Corpo */}
+              <div className="flex flex-1 flex-col gap-3 px-4 pb-4 pt-3.5">
+                {/* Trava */}
+                <div className="flex items-center gap-2">
+                  <span className="border border-gold-400/50 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-widest text-gold-400">
+                    Trava
+                  </span>
+                  <span className="font-display text-lg uppercase leading-none tracking-wide text-chalk">
+                    {travaText(e.fixture, e.ticket.result)}
+                  </span>
+                </div>
+
+                {/* Palpites como chips (o meme visível) */}
+                {picks.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {shown.map((p, i) => (
+                      <span
+                        key={i}
+                        className="flex items-center gap-1 border border-chalk/15 bg-night-950/50 py-1 pl-1 pr-1.5 font-mono text-[10px] uppercase tracking-wide text-chalk-dim"
+                      >
+                        <span
+                          className={`h-1.5 w-1.5 rounded-full ${
+                            p.side === "SIM" ? "bg-grass-400" : "bg-danger"
+                          }`}
+                          title={p.side === "SIM" ? "SIM" : "NÃO"}
+                        />
+                        <span className="text-xs leading-none">{p.emoji}</span>
+                        <span className="max-w-[7rem] truncate text-chalk">
+                          {p.nome}
+                        </span>
                       </span>
-                    </div>
+                    ))}
+                    {extra > 0 && (
+                      <span className="flex items-center border border-chalk/15 bg-night-950/50 px-2 py-1 font-mono text-[10px] uppercase tracking-wide text-chalk/50">
+                        +{extra}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <p className="font-mono text-[10px] uppercase tracking-widest text-chalk/30">
+                    Só a trava — sem variáveis
+                  </p>
+                )}
+
+                {/* Pontuação em destaque */}
+                <div className="mt-auto flex items-end justify-between border-t-2 border-dashed border-chalk/12 pt-3">
+                  <div className="font-mono text-[10px] uppercase leading-tight tracking-widest text-chalk-dim">
+                    {count} mercado{count === 1 ? "" : "s"}
+                    <br />
+                    valendo
                   </div>
                   <div className="text-right">
-                    <div className="font-display text-2xl leading-none tabular-nums text-gold-400">
+                    <div className="font-display text-[2.6rem] leading-[0.8] tabular-nums text-gold-400 [text-shadow:0_0_22px_rgba(255,196,0,0.4)]">
                       +{potencial}
                     </div>
                     <div className="font-mono text-[9px] uppercase tracking-[0.25em] text-chalk/40">
-                      {count} merc.
+                      pontos em jogo
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="mt-4 grid grid-cols-2 gap-2">
+              {/* Ações */}
+              <div className="grid grid-cols-[1fr_auto] gap-2 px-4 pb-4">
                 <button
                   onClick={() => onOpen(e.fixtureId)}
-                  className="border border-chalk/20 py-2 font-mono text-[11px] uppercase tracking-widest text-chalk-dim transition hover:border-chalk/45 hover:text-chalk"
+                  className="border border-gold-400 bg-gold-400 py-2.5 font-display text-sm uppercase tracking-[0.18em] text-night-950 shadow-[3px_3px_0_rgba(0,0,0,0.5)] transition hover:bg-gold-300 active:translate-y-0.5 active:shadow-[1px_1px_0_rgba(0,0,0,0.5)]"
                 >
-                  Abrir
+                  {active ? "Aberto" : "Abrir"}
                 </button>
                 <button
                   onClick={() => onShare(e.fixtureId)}
-                  className="border border-gold-400/60 py-2 font-mono text-[11px] uppercase tracking-widest text-gold-400 transition hover:border-gold-400 hover:bg-gold-400/10"
+                  className={`border px-3 py-2.5 font-mono text-[11px] uppercase tracking-widest transition ${
+                    copied
+                      ? "border-grass-400 text-grass-400"
+                      : "border-chalk/25 text-chalk-dim hover:border-gold-400 hover:text-gold-400"
+                  }`}
                 >
                   {copied ? "✓ copiado" : "🔗 Link"}
                 </button>
               </div>
-            </div>
+            </article>
           );
         })}
       </div>
