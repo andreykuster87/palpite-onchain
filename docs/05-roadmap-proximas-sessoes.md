@@ -1,32 +1,61 @@
 # Roadmap — 4Line On-Chain · build dos bilhetes-meme
 
-_Atualizado em 2026-07-18. **Fase A + bilhetes compartilháveis + "Minha
-prateleira" CONCLUÍDOS, verificados e NO AR** (`4line-onchain.vercel.app`). Este
-doc é o plano da PRÓXIMA sessão: **Bolões (criar/entrar + bolão da plataforma)**
-→ Fase B (craques) → vídeo._
+_Atualizado em 2026-07-18. **Fase A + compartilháveis + prateleira + BOLÕES
+(Fase A.6) + fluxo ao vivo + Fase B (Craques) CONCLUÍDOS, verificados e NO AR**
+(`4line-onchain.vercel.app`), ainda **100% LOCAL** (sem backend). Próxima sessão:
+**vídeo demo** ou **backend real (Supabase)**._
 
 ---
 
 ## ▶️ FRASE PRA INICIAR A PRÓXIMA SESSÃO (cole isto)
 
-> Retomar o **4Line On-Chain** (pasta `C:\Coach`). **NO AR e verificado**
-> (`4line-onchain.vercel.app`; push em `master` = auto-deploy Vercel ~30s):
-> bilhete-meme jogável (📊 Estatísticas + 🤡 Zoeira-bônus, motor `scoreTicket`
-> em `web/lib/scoring.mjs`, catálogo `web/lib/catalog.ts`, telas
-> `TicketBuilder`/`SealedTicket`/`TicketScore`, `web/app/page.tsx` orquestra);
-> **bilhetes compartilháveis** (link `#b=<base64>` em `web/lib/share.ts`,
-> pré-carrega o builder); **"Minha prateleira"** (`web/components/Prateleira.tsx`,
-> bilhetes selados guardados + compartilháveis, cards com chips dos palpites).
-> **Prioridade desta sessão: BOLÕES** — pessoas podem **criar/entrar num bolão**
-> (código/link de convite) e existe o **bolão da plataforma** (público, todo
-> mundo entra). Isso **EXIGE backend = Supabase** (a prateleira ficou local por
-> decisão anterior; o bolão é o motivo de finalmente subir o Supabase). Decidir
-> no começo: criar projeto Supabase novo (só existe o NorthWindy, não
-> relacionado) + **2 env vars na Vercel (manual do Andrey)** + identidade por
-> apelido local agora (Phantom `signMessage` depois). Ler
-> `docs/05-roadmap-proximas-sessoes.md`. Depois: (2) **Fase B** (craques —
-> `web/lib/txline-adapter.mjs` p/ PlayerStats + Lineups), (3) **vídeo +
-> submissão**. Token em `web/.env.local` (devnet). **NÃO quebrar o que está no ar.**
+> Retomar o **4Line On-Chain** (pasta `C:\Coach`; hackathon TxLINE). **NO AR e
+> verificado** (`4line-onchain.vercel.app`; push em `master` = auto-deploy Vercel
+> ~30–60s). App Next.js em `web/`, **100% LOCAL** (sem backend ainda).
+>
+> **Pronto e no ar:** bilhete-meme jogável com setores 📊 Estatísticas + 🤡
+> Zoeira + **👑 Craques** (Fase B — mercados AGREGADOS por jogador via
+> `PlayerStats` real, SEM nomes; catálogo `web/lib/catalog.ts`, motor
+> `web/lib/scoring.mjs`, adapter `web/lib/txline-adapter.mjs`). **Fluxo selar →
+> ao vivo → resultado:** "🔒 Selar palpite" (no `TicketBuilder`) sela e inicia a
+> partida AO VIVO (relógio 0'→90' ~9s + barra; palpites revelando ● no ar → ✓/✗;
+> `playLive`/`liveMin`/`isLive`/`isFinal` em `web/app/page.tsx`; reveal por
+> minuto em `web/components/SealedTicket.tsx`); no fim, placar + pontuação +
+> ranking REAL. **Bolões** (Fase A.6, LOCAL): criar/entrar por código/link
+> (`#p=`), bolão da Plataforma + **Firma FC SEMEADOS** (`web/lib/pools.ts`);
+> buy-in ao criar (Grátis/R$50/R$100; Plataforma R$50, Firma FC R$100); seletor +
+> **painel do bolão** (clicar no nome → premiação buy-in×participantes 🥇50/🥈30/
+> 🥉20, ranking, participantes, convite) em `web/components/PoolBar.tsx`.
+> **Ranking simulado SEMPRE visível** (nomes + ● ao vivo; `poolStandings` em
+> `web/lib/mock.ts`) → vira REAL no fim do jogo. **Prateleira agrupada por bolão**
+> + inscrição no modal (escolhe bolão + paga SIMULADO; mesmo bilhete em vários) em
+> `web/components/Prateleira.tsx` + `web/lib/entries.ts`. **Identidade local**
+> (apelido + userId anônimo) em `web/lib/identity.ts`. **Todo modal vai por
+> `createPortal(document.body)`**.
+>
+> **Camadas isoladas pra trocar por Supabase SEM mexer na UI:** `identity.ts`,
+> `pools.ts`, `entries.ts`.
+>
+> **Ainda SIMULADO/local:** bolões/ranking/inscrição/premiação são locais (não há
+> gente real cross-device); pagamento é placeholder; o "ao vivo" roda ~9s
+> simulado (jogos do demo já encerrados — in-play real precisa de jogo ao vivo +
+> stream `/scores/stream`); craque NOMEADO exige roster externo (feed não tem
+> nomes).
+>
+> **GOTCHAS:** (a) todo modal por portal no body (ancestral com `transform`/
+> `reveal` quebra `position:fixed`); (b) **NÃO rodar `npm run build` com o dev
+> server ligado** (corrompe o `.next` → overlay "__webpack_modules__ is not a
+> function"; parar o dev antes); (c) nos testes de browser usar `textContent` (o
+> `innerText` ignora elementos com a animação `reveal` opacity:0); (d) edições
+> rápidas corrompem o HMR → reiniciar o dev.
+>
+> **Próximo passo recomendado: (1) VÍDEO demo ≤5min** — único obrigatório do
+> hackathon que falta (link ✅ + repo ✅) e há muito o que mostrar; posso preparar
+> roteiro + estado de demo. Alternativa: **(2) Backend real (Supabase)** — maior
+> salto (bolões/ranking/premiação reais cross-device), exige projeto Supabase
+> novo (só existe NorthWindy) + 2 env vars na Vercel (manual do Andrey). Token em
+> `web/.env.local` (devnet). Ler `docs/05-roadmap-proximas-sessoes.md`. **NÃO
+> quebrar o que está no ar.**
 
 ---
 
