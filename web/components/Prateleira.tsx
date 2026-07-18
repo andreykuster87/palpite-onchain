@@ -320,7 +320,7 @@ export function Prateleira({
           </div>
           <div>
             <h2 className="font-display text-3xl uppercase leading-none tracking-[0.12em] text-chalk">
-              Minha prateleira
+              Meus bilhetes
             </h2>
             <p className="mt-1 max-w-md font-mono text-[11px] leading-relaxed text-chalk-dim">
               Seus bilhetes selados ficam aqui, agrupados por bolão. Abra um e{" "}

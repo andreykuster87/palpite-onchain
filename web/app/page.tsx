@@ -13,6 +13,7 @@ import { TicketScore } from "@/components/TicketScore";
 import { Ranking, type RankRow } from "@/components/Ranking";
 import { readShareFromHash, buildShareUrl, type SharedTicket } from "@/lib/share";
 import { Prateleira } from "@/components/Prateleira";
+import { HowToPlay } from "@/components/HowToPlay";
 import { PoolBar } from "@/components/PoolBar";
 import {
   PLATFORM_POOL,
@@ -93,6 +94,8 @@ export default function Home() {
   const [copiedPoolId, setCopiedPoolId] = useState<string | null>(null);
   // Inscrições de bilhetes em bolões (pagamento simulado por enquanto).
   const [poolEntries, setPoolEntries] = useState<PoolEntry[]>([]);
+  // Guia "Como jogar" — dispensável (some depois que a pessoa entende).
+  const [guideDismissed, setGuideDismissed] = useState(false);
 
   const activePool = pools.find((p) => p.id === activePoolId) ?? PLATFORM_POOL;
   // Participantes simulados do bolão ativo (roster estável por código).
@@ -156,11 +159,21 @@ export default function Home() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) setSaved(JSON.parse(raw));
+      if (localStorage.getItem("palpite:guideSeen") === "1") setGuideDismissed(true);
     } catch {
       /* ignora storage indisponível */
     }
     setHydrated(true);
   }, []);
+
+  function dismissGuide() {
+    setGuideDismissed(true);
+    try {
+      localStorage.setItem("palpite:guideSeen", "1");
+    } catch {
+      /* ignora */
+    }
+  }
 
   // Persiste sempre que 'saved' muda (após hidratar).
   useEffect(() => {
@@ -512,6 +525,13 @@ export default function Home() {
         })}
       </div>
 
+      {/* ---------- Guia "Como jogar" (fase de montar, dispensável) ---------- */}
+      {!savedEntry && !guideDismissed && (
+        <div className="mb-6">
+          <HowToPlay onDismiss={dismissGuide} />
+        </div>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
         {/* ---------- Coluna principal ---------- */}
         <section className="space-y-6">
@@ -704,12 +724,26 @@ export default function Home() {
                     Refazer
                   </button>
                 </div>
-                {!isFinal && (
-                  <p className="text-center font-mono text-[11px] leading-relaxed text-chalk/35">
-                    {isLive
-                      ? "A bola está rolando — cada palpite confirma ou não durante o jogo. No fim, o resultado completo."
-                      : "Palpite selado (commit). Assistir consulta o oráculo TxLINE; sem dado final, roda simulação rotulada."}
-                  </p>
+                {isLive ? (
+                  <div className="flex items-start gap-2.5 border border-grass-400/40 bg-grass-400/[0.06] px-3.5 py-2.5">
+                    <span className="text-base leading-none">👀</span>
+                    <p className="font-mono text-[11px] leading-relaxed text-grass-400">
+                      <span className="uppercase tracking-widest">Acompanhe ao vivo</span>
+                      <br />
+                      Palpite selado! Agora é só torcer: cada aposta vai{" "}
+                      <span className="text-grass-300">confirmando ou negando</span>{" "}
+                      conforme o jogo anda. No apito final, o{" "}
+                      <span className="text-grass-300">resultado completo</span> + sua
+                      pontuação e o ranking.
+                    </p>
+                  </div>
+                ) : (
+                  !isFinal && (
+                    <p className="text-center font-mono text-[11px] leading-relaxed text-chalk/35">
+                      Palpite selado (commit). &quot;Assistir&quot; consulta o oráculo
+                      TxLINE; sem dado final, roda uma simulação rotulada.
+                    </p>
+                  )
                 )}
               </div>
             )}
