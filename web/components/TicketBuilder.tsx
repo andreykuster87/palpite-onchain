@@ -197,7 +197,7 @@ export function TicketBuilder({ fixture, markets, ticket, onChange, onSeal }: Pr
           onClick={onSeal}
           className="w-full border border-gold-400 bg-gold-400 py-3.5 font-display text-lg uppercase tracking-[0.22em] text-night-950 shadow-[5px_5px_0_rgba(0,0,0,0.55)] transition hover:-translate-y-0.5 hover:bg-gold-300 active:translate-y-0 active:shadow-[2px_2px_0_rgba(0,0,0,0.55)]"
         >
-          Selar bilhete
+          🔒 Selar palpite
         </button>
       </div>
     </div>

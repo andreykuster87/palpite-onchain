@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { scoreTicket, ticketErrors, rankEntries } from "@/lib/scoring.mjs";
 import type { Ticket, MatchStats } from "@/lib/scoring";
 import { ticketOpponentsFor, poolMembers, poolStandings } from "@/lib/mock";
@@ -72,7 +72,9 @@ export default function Home() {
   const [draft, setDraft] = useState<Ticket>(newDraft());
   const [saved, setSaved] = useState<SavedTickets>({});
   const [whistled, setWhistled] = useState<WhistledMap>({});
-  const [whistling, setWhistling] = useState(false);
+  // Minuto da partida ao vivo por fixture (0..90). Ausente = não começou; 90 = fim.
+  const [liveMin, setLiveMin] = useState<Record<string, number>>({});
+  const liveTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const [hydrated, setHydrated] = useState(false);
   // Bilhete compartilhado carregado do hash da URL (#b=…), se houver.
   const [incoming, setIncoming] = useState<SharedTicket | null>(null);
@@ -97,6 +99,10 @@ export default function Home() {
   const fixture = fixtures.find((f) => f.id === fixtureId) ?? fixtures[0];
   const savedEntry = saved[fixture.id];
   const finished = whistled[fixture.id];
+  // Fase da partida desta fixture: relógio ao vivo → resultado final.
+  const lm = liveMin[fixture.id];
+  const isLive = lm !== undefined && lm < 90;
+  const isFinal = !!finished && (lm === undefined || lm >= 90);
   // Estamos vendo um bilhete que veio de um amigo (para esta fixture)?
   const fromFriend = !!incoming && incoming.fixtureId === fixture.id;
 
@@ -248,11 +254,54 @@ export default function Home() {
     setDraft(newDraft());
   }, [fixture.id, saved, incoming, marketsMap]);
 
+  function stopLiveTimer() {
+    if (liveTimer.current) {
+      clearInterval(liveTimer.current);
+      liveTimer.current = null;
+    }
+  }
+  // Limpa o timer ao desmontar.
+  useEffect(() => () => stopLiveTimer(), []);
+
+  /**
+   * Busca o resultado final (oráculo/demo) e roda a partida AO VIVO: o relógio
+   * vai de 0' a 90'; os palpites vão confirmando/negando conforme o minuto de
+   * resolução de cada um; no 90' fecha o placar final. Simulado por enquanto
+   * (jogos do demo já encerrados); troca por in-play real com o stream do oráculo.
+   */
+  async function playLive(fx: CopaFixture) {
+    let result: { stats: MatchStats; source: StatsSource } = {
+      stats: demoFill(fx),
+      source: "demo",
+    };
+    try {
+      const res = await fetch(`/api/scores/${fx.txlineFixtureId}`);
+      if (res.ok) {
+        const d = await res.json();
+        if (d?.stats) result = { stats: d.stats, source: "txline" };
+      }
+    } catch {
+      /* mantém demo */
+    }
+    const fid = fx.id;
+    setWhistled((w) => ({ ...w, [fid]: result }));
+    stopLiveTimer();
+    setLiveMin((m) => ({ ...m, [fid]: 0 }));
+    liveTimer.current = setInterval(() => {
+      setLiveMin((m) => {
+        const cur = Math.min(90, (m[fid] ?? 0) + 2);
+        if (cur >= 90) stopLiveTimer();
+        return { ...m, [fid]: cur };
+      });
+    }, 200); // ~9s de jogo
+  }
+
   function handleSeal() {
     setSaved((s) => ({
       ...s,
       [fixture.id]: { ticket: draft, submittedAt: Date.now() },
     }));
+    playLive(fixture); // sela → começa a partida ao vivo
   }
 
   /** Gera o link de um bilhete selado (por fixture) e copia pro clipboard. */
@@ -274,6 +323,7 @@ export default function Home() {
   }
 
   function reopen() {
+    stopLiveTimer();
     setSaved((s) => {
       const next = { ...s };
       delete next[fixture.id];
@@ -284,29 +334,16 @@ export default function Home() {
       delete next[fixture.id];
       return next;
     });
+    setLiveMin((m) => {
+      const next = { ...m };
+      delete next[fixture.id];
+      return next;
+    });
     setDraft(savedEntry?.ticket ?? newDraft());
   }
 
-  /** Apita: tenta o dado real do oráculo; sem ele, simulação rotulada. */
-  async function whistle() {
-    setWhistling(true);
-    let result: { stats: MatchStats; source: StatsSource } = {
-      stats: demoFill(fixture),
-      source: "demo",
-    };
-    try {
-      const res = await fetch(`/api/scores/${fixture.txlineFixtureId}`);
-      if (res.ok) {
-        const d = await res.json();
-        if (d?.stats) result = { stats: d.stats, source: "txline" };
-      }
-    } catch {
-      /* mantém demo */
-    }
-    setWhistled((w) => ({ ...w, [fixture.id]: result }));
-    setWhistling(false);
-  }
-
+  // Pontuação por palpite (hit/miss) — disponível já durante o ao vivo (o reveal
+  // por minuto é feito no SealedTicket). O TOTAL só é exibido no fim (isFinal).
   const score = useMemo(
     () =>
       savedEntry && finished
@@ -315,16 +352,16 @@ export default function Home() {
     [savedEntry, finished, marketsMap]
   );
 
-  // Está mostrando o ranking SIMULADO (antes do apito)? Depois do apito, mostra
-  // a pontuação real de você + adversários contra o dado do oráculo.
-  const rankingSimulated = !(savedEntry && finished);
+  // Ranking SIMULADO enquanto o jogo não terminou; no fim (isFinal), pontuação
+  // real de você + adversários contra o dado do oráculo.
+  const rankingSimulated = !(savedEntry && isFinal);
 
   const ranking = useMemo<RankRow[]>(() => {
     const count = activePool.isPlatform ? 11 : undefined;
     const youName = identity.nickname || "Você";
 
-    // Pós-apito: pontuação real.
-    if (savedEntry && finished) {
+    // Fim de jogo: pontuação real.
+    if (savedEntry && isFinal) {
       const opponents = ticketOpponentsFor(fixture, markets, finished.stats, {
         seed: activePool.code,
         count,
@@ -384,9 +421,10 @@ export default function Home() {
       pending: true,
     });
     return rows;
-  }, [savedEntry, finished, fixture, markets, marketsMap, activePool, identity.nickname]);
+  }, [savedEntry, isFinal, finished, fixture, markets, marketsMap, activePool, identity.nickname]);
 
-  const f = finished?.stats;
+  // Placar final só aparece no fim do jogo (durante o ao vivo mostra o relógio).
+  const f = isFinal ? finished?.stats : undefined;
   const totalCards = f
     ? (f.yellowHome ?? 0) + (f.yellowAway ?? 0) + (f.redHome ?? 0) + (f.redAway ?? 0)
     : 0;
@@ -479,9 +517,11 @@ export default function Home() {
           >
             <div className="mb-6 flex items-center justify-between font-mono text-[11px] uppercase tracking-[0.25em]">
               <span className="text-chalk-dim">{fixture.league}</span>
-              {finished ? (
-                <span className={finished.source === "txline" ? "text-grass-400" : "text-gold-400"}>
-                  ● {finished.source === "txline" ? "dado do oráculo" : "simulação"}
+              {isLive ? (
+                <span className="blink text-grass-400">● ao vivo · {lm}&apos;</span>
+              ) : isFinal ? (
+                <span className={finished?.source === "txline" ? "text-grass-400" : "text-gold-400"}>
+                  ● encerrado · {finished?.source === "txline" ? "dado do oráculo" : "simulação"}
                 </span>
               ) : (
                 <span className="blink text-grass-400">● aguardando bilhetes</span>
@@ -505,6 +545,11 @@ export default function Home() {
                     <span className="text-chalk/25">–</span>
                     {f.goalsAway}
                   </div>
+                ) : isLive ? (
+                  <div className="score-pop font-mono text-5xl font-bold tabular-nums leading-none text-grass-400 sm:text-6xl">
+                    {lm}
+                    <span className="text-lg text-grass-400/60">&apos;</span>
+                  </div>
                 ) : (
                   <div className="font-display text-4xl uppercase text-chalk/15 sm:text-5xl">
                     vs
@@ -521,6 +566,20 @@ export default function Home() {
                 </div>
               </div>
             </div>
+
+            {isLive && (
+              <div className="relative mt-7 border-t border-dashed border-chalk/12 pt-5">
+                <div className="h-1.5 w-full overflow-hidden bg-night-800">
+                  <div
+                    className="h-full bg-grass-400 transition-[width] duration-150 ease-linear"
+                    style={{ width: `${Math.round((lm! / 90) * 100)}%` }}
+                  />
+                </div>
+                <div className="mt-2 text-center font-mono text-[10px] uppercase tracking-[0.3em] text-chalk/40">
+                  bola rolando · os palpites vão confirmando
+                </div>
+              </div>
+            )}
 
             {f && (
               <div className="relative mt-7 grid grid-cols-3 gap-2 border-t border-dashed border-chalk/12 pt-5 text-center">
@@ -594,10 +653,11 @@ export default function Home() {
                     markets={markets}
                     ticket={savedEntry.ticket}
                     score={score}
+                    liveMin={isLive ? lm : undefined}
                   />
-                  {!finished && (
+                  {!isFinal && (
                     <div className="stamp pointer-events-none absolute right-1 top-0 border-[3px] border-gold-400/80 px-3 py-1 font-display text-xl uppercase tracking-[0.25em] text-gold-400/90">
-                      Selado
+                      {isLive ? "No ar" : "Selado"}
                     </div>
                   )}
                 </div>
@@ -612,14 +672,19 @@ export default function Home() {
                 </div>
 
                 <div className="flex flex-wrap gap-2.5">
-                  {!finished && (
+                  {/* Bilhete selado que ainda não jogou (ex.: após reload): assistir. */}
+                  {!finished && !isLive && (
                     <button
-                      onClick={whistle}
-                      disabled={whistling}
-                      className="flex-1 border border-gold-400 bg-gold-400 py-3.5 font-display text-lg uppercase tracking-[0.22em] text-night-950 shadow-[5px_5px_0_rgba(0,0,0,0.55)] transition hover:-translate-y-0.5 hover:bg-gold-300 active:translate-y-0 active:shadow-[2px_2px_0_rgba(0,0,0,0.55)] disabled:cursor-wait disabled:opacity-70"
+                      onClick={() => playLive(fixture)}
+                      className="flex-1 border border-gold-400 bg-gold-400 py-3.5 font-display text-lg uppercase tracking-[0.22em] text-night-950 shadow-[5px_5px_0_rgba(0,0,0,0.55)] transition hover:-translate-y-0.5 hover:bg-gold-300 active:translate-y-0 active:shadow-[2px_2px_0_rgba(0,0,0,0.55)]"
                     >
-                      {whistling ? "Selando palpite…" : "🔒 Selar palpite"}
+                      ▶ Assistir resultado
                     </button>
+                  )}
+                  {isLive && (
+                    <div className="flex flex-1 items-center justify-center gap-2 border border-grass-400/50 bg-grass-400/[0.06] py-3.5 font-display text-lg uppercase tracking-[0.22em] text-grass-400">
+                      <span className="blink">●</span> Ao vivo · {lm}&apos;
+                    </div>
                   )}
                   <button
                     onClick={() => shareById(fixture.id)}
@@ -634,10 +699,11 @@ export default function Home() {
                     Refazer
                   </button>
                 </div>
-                {!finished && (
+                {!isFinal && (
                   <p className="text-center font-mono text-[11px] leading-relaxed text-chalk/35">
-                    Selar consulta o oráculo TxLINE pra pontuar; sem dado final
-                    disponível, roda uma simulação rotulada.
+                    {isLive
+                      ? "A bola está rolando — cada palpite confirma ou não durante o jogo. No fim, o resultado completo."
+                      : "Palpite selado (commit). Assistir consulta o oráculo TxLINE; sem dado final, roda simulação rotulada."}
                   </p>
                 )}
               </div>
@@ -647,19 +713,24 @@ export default function Home() {
 
         {/* ---------- Coluna lateral ---------- */}
         <aside className="space-y-6">
-          {score ? (
+          {isFinal && score ? (
             <TicketScore score={score} markets={markets} />
           ) : (
             <div
               className="reveal border border-dashed border-chalk/15 p-8 text-center"
               style={{ animationDelay: "0.18s" }}
             >
-              <div className="font-display text-lg uppercase tracking-[0.2em] text-chalk/30">
-                Aguardando apito
+              <div
+                className={`font-display text-lg uppercase tracking-[0.2em] ${
+                  isLive ? "blink text-grass-400" : "text-chalk/30"
+                }`}
+              >
+                {isLive ? `● Jogo ao vivo · ${lm}'` : "Aguardando"}
               </div>
               <p className="mt-2 font-mono text-[11px] leading-relaxed text-chalk/35">
-                Monte e sele um bilhete, depois apite o fim de jogo para ver sua
-                pontuação e o ranking.
+                {isLive
+                  ? "Os palpites vão confirmando durante a partida. No apito final, sua pontuação e o ranking."
+                  : "Monte e sele seu palpite para acompanhar o jogo ao vivo e ver sua pontuação e o ranking."}
               </p>
             </div>
           )}
