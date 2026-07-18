@@ -628,6 +628,20 @@ export default function Home() {
             )}
           </div>
 
+          {/* Ranking no MOBILE: logo após o placar (na lateral ele fica só no desktop) */}
+          <div className="lg:hidden">
+            <Ranking
+              rows={ranking}
+              title={activePool.name}
+              live={rankingSimulated}
+              prize={
+                activePool.buyIn > 0
+                  ? prizeBreakdown(activePool.buyIn, activeMembers.length + 1)
+                  : null
+              }
+            />
+          </div>
+
           {/* Bilhete */}
           <div
             className="reveal relative border border-chalk/12 bg-night-800 p-6"
@@ -754,17 +768,20 @@ export default function Home() {
 
         {/* ---------- Coluna lateral ---------- */}
         <aside className="space-y-6">
-          {/* Ranking do bolão em destaque no topo (nome + premiação + posições) */}
-          <Ranking
-            rows={ranking}
-            title={activePool.name}
-            live={rankingSimulated}
-            prize={
-              activePool.buyIn > 0
-                ? prizeBreakdown(activePool.buyIn, activeMembers.length + 1)
-                : null
-            }
-          />
+          {/* Ranking do bolão em destaque no topo (só desktop; no mobile ele
+              aparece logo após o placar) */}
+          <div className="hidden lg:block">
+            <Ranking
+              rows={ranking}
+              title={activePool.name}
+              live={rankingSimulated}
+              prize={
+                activePool.buyIn > 0
+                  ? prizeBreakdown(activePool.buyIn, activeMembers.length + 1)
+                  : null
+              }
+            />
+          </div>
           {/* Detalhe da sua pontuação (abaixo do ranking) */}
           {isFinal && score ? (
             <TicketScore score={score} markets={markets} />
