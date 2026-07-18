@@ -1,27 +1,32 @@
 # Roadmap — 4Line On-Chain · build dos bilhetes-meme
 
-_Atualizado em 2026-07-18. **Fase A CONCLUÍDA e verificada** (bilhete-meme
-jogável no app, reorganizado em 📊 Estatísticas + 🤡 Zoeira-bônus). Este doc é o
-plano da PRÓXIMA sessão: **bilhetes compartilháveis** → Fase B (craques) → vídeo._
+_Atualizado em 2026-07-18. **Fase A + bilhetes compartilháveis + "Minha
+prateleira" CONCLUÍDOS, verificados e NO AR** (`4line-onchain.vercel.app`). Este
+doc é o plano da PRÓXIMA sessão: **Bolões (criar/entrar + bolão da plataforma)**
+→ Fase B (craques) → vídeo._
 
 ---
 
 ## ▶️ FRASE PRA INICIAR A PRÓXIMA SESSÃO (cole isto)
 
-> Retomar o **4Line On-Chain** (pasta `C:\Coach`). **Fase A concluída e
-> verificada** — bilhete-meme jogável: setores **📊 Estatísticas** + **🤡
-> Zoeira-bônus (+3 no acerto, 0 no erro)**, motor `scoreTicket` em
-> `web/lib/scoring.mjs`, catálogo `web/lib/catalog.ts`, telas
-> `TicketBuilder`/`SealedTicket`/`TicketScore` (`web/app/page.tsx` orquestra).
-> ⚠️ **Tudo no working tree, NÃO commitado** — decidir commit/deploy no começo
-> (push em `master` faz auto-deploy na Vercel). **Prioridade desta sessão:
-> (1) BILHETES COMPARTILHÁVEIS** — botão que gera um link codificando o bilhete
-> (fixture + picks) pra outro usuário abrir e fazer a MESMA aposta; MVP **sem
-> backend** (encode no hash da URL, pré-carrega o builder). Depois: (2) **Fase B**
-> (craques — estender `web/lib/txline-adapter.mjs` p/ PlayerStats + Lineups),
-> (3) **vídeo + submissão**. Ler `docs/05-roadmap-proximas-sessoes.md`. App em
-> `web/`, deploy `4line-onchain.vercel.app`, token em `web/.env.local` (devnet).
-> **NÃO quebrar o que está no ar.**
+> Retomar o **4Line On-Chain** (pasta `C:\Coach`). **NO AR e verificado**
+> (`4line-onchain.vercel.app`; push em `master` = auto-deploy Vercel ~30s):
+> bilhete-meme jogável (📊 Estatísticas + 🤡 Zoeira-bônus, motor `scoreTicket`
+> em `web/lib/scoring.mjs`, catálogo `web/lib/catalog.ts`, telas
+> `TicketBuilder`/`SealedTicket`/`TicketScore`, `web/app/page.tsx` orquestra);
+> **bilhetes compartilháveis** (link `#b=<base64>` em `web/lib/share.ts`,
+> pré-carrega o builder); **"Minha prateleira"** (`web/components/Prateleira.tsx`,
+> bilhetes selados guardados + compartilháveis, cards com chips dos palpites).
+> **Prioridade desta sessão: BOLÕES** — pessoas podem **criar/entrar num bolão**
+> (código/link de convite) e existe o **bolão da plataforma** (público, todo
+> mundo entra). Isso **EXIGE backend = Supabase** (a prateleira ficou local por
+> decisão anterior; o bolão é o motivo de finalmente subir o Supabase). Decidir
+> no começo: criar projeto Supabase novo (só existe o NorthWindy, não
+> relacionado) + **2 env vars na Vercel (manual do Andrey)** + identidade por
+> apelido local agora (Phantom `signMessage` depois). Ler
+> `docs/05-roadmap-proximas-sessoes.md`. Depois: (2) **Fase B** (craques —
+> `web/lib/txline-adapter.mjs` p/ PlayerStats + Lineups), (3) **vídeo +
+> submissão**. Token em `web/.env.local` (devnet). **NÃO quebrar o que está no ar.**
 
 ---
 
@@ -113,25 +118,51 @@ _Plano original abaixo (referência do que foi entregue):_
 5. **Ligar ao apito/replay** já existente pra resolver e pontuar.
 6. Rodar testes + deploy. **Checkpoint: app com bilhete-meme jogável no ar.**
 
-### 🔴 Fase A.5 — Bilhetes compartilháveis (PRIORIDADE da próxima sessão)
-_Pedido do Andrey: o usuário pode **deixar/compartilhar o seu bilhete** pra que
-outro interessado faça a **mesma aposta**._
+### ✅ Fase A.5 — Bilhetes compartilháveis + Minha prateleira — CONCLUÍDA (18/07)
+_No ar e verificado end-to-end._ Entregue:
+- **Compartilhar** (`web/lib/share.ts`): botão no bilhete selado gera link
+  `/#b=<base64>` codificando `fixtureId` + `{result, picks}` e copia pro
+  clipboard; abrir o link decodifica, troca pra fixture e **pré-carrega o
+  builder** (picks saneados contra o catálogo) + banner "Bilhete de um amigo".
+  Só o palpite viaja. **Gotcha:** trocar só o hash não remonta o React → o
+  effect `[]` só roda em fresh load (caso real do amigo).
+- **Minha prateleira** (`web/components/Prateleira.tsx`): lista os bilhetes
+  selados (local, `localStorage palpite:tickets:v4`), cards estilo bilhete com
+  **chips dos palpites** (emoji + bolinha do lado), pontos em jogo, botões
+  Abrir/🔗 Link. **É LOCAL por decisão do Andrey** — não há descoberta
+  cross-device; pro desconhecido, o caminho é o link compartilhável.
 
-**MVP sem backend (fazer primeiro):**
-1. Botão **"Compartilhar bilhete"** na tela do bilhete selado
-   (`SealedTicket`/`page.tsx`) → gera um link que **codifica o palpite**:
-   `fixtureId` + `ticket` (`{result, picks}`) no **hash da URL**
-   (ex.: `/#b=<base64(JSON)>`). Só o palpite viaja — nada sensível.
-2. Ao abrir um link com `#b=…`, o app **decodifica**, seleciona a fixture e
-   **pré-carrega o builder** com a mesma trava e os mesmos mercados/lados; o
-   usuário revisa e **sela o SEU** bilhete (não altera o do outro).
-3. UX: rótulo "bilhete copiado de um amigo" + botão "copiar link" (clipboard).
-   Opcional: apelido local do autor.
+### 🔴 Fase A.6 — BOLÕES (ligas) — PRIORIDADE da próxima sessão
+_Pedido do Andrey: pessoas podem **criar/entrar num bolão** e existe um **bolão
+da plataforma** (público). Este é o passo que EXIGE backend (Supabase) — a
+prateleira local não resolve pool entre usuários **diferentes**._
 
-**Versão completa (Supabase, futuro — casa com a Fase C):** pool de bilhetes
-públicos ("bilhetes da galera"), copiar com 1 clique, contagem de quantos
-copiaram → alimenta o **% da galera** e vira o embrião das **ligas
-compartilhadas**.
+**Duas camadas:**
+1. **Bolão da plataforma (global):** pool público único, todo mundo dentro.
+   Substitui os adversários fake de hoje (`ticketOpponentsFor` em
+   `web/lib/mock.ts`) por um leaderboard **real**: os bilhetes selados de todos
+   para aquela fixture, pontuados pelo motor v2 e ranqueados.
+2. **Bolões privados:** criar um bolão (nome → gera **código/link de convite**),
+   entrar por código/link, ranking só entre os membros.
+
+**Precisa (Supabase — decisão de infra a confirmar no início):**
+- Criar **projeto Supabase novo** (só existe NorthWindy na conta, não
+  relacionado; NÃO reusar).
+- Tabelas: `pools` (id, nome, código, is_platform, created_at), `pool_members`
+  (pool_id, user_id, apelido), `tickets` (pool_id, user_id, fixture_id, result,
+  picks jsonb, submitted_at). RLS: leitura pública, escrita anônima validada.
+- **Rotas server no Next** (`/api/pools`, `/api/pools/[code]/join`,
+  `/api/tickets`) — mesmo padrão do token TxLINE (chaves só no servidor,
+  `web/lib/txline-server.mjs` como referência).
+- **2 env vars na Vercel** (`SUPABASE_URL` + key) — passo **manual do Andrey**
+  no painel + redeploy (não dá pra setar env de produção pelo agente).
+- **Identidade:** apelido + `userId` anônimo no `localStorage` agora; **Phantom
+  `signMessage` depois** (identidade real sem dinheiro).
+- Publica no bolão ao selar; o bilhete continua no hash pra convite direto.
+
+**UX:** seletor de bolão no topo (Plataforma / meus bolões / entrar por código);
+o ranking lateral passa a mostrar o bolão selecionado; ações "Criar bolão" e
+"Entrar por código". Alimenta o **% da galera** e o **jogo-destaque** da Fase C.
 
 ### 🟠 Fase B — Craques (variáveis por jogador)
 1. Estender o **adapter** (`web/lib/txline-adapter.mjs`) pra extrair `PlayerStats`
