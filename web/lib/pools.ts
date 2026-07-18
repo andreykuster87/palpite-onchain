@@ -13,6 +13,9 @@
 
 import { toBase64Url, fromBase64Url } from "./share";
 
+/** Como o ranking do bolão é disputado. */
+export type PoolScoring = "points" | "result";
+
 export interface Pool {
   id: string;
   name: string;
@@ -22,8 +25,23 @@ export interface Pool {
   isPlatform: boolean;
   /** Valor da inscrição (buy-in) em R$ inteiros. 0 = grátis. */
   buyIn: number;
+  /** Jogos do bolão (fixtureIds). Vazio = todos os jogos. */
+  games: string[];
+  /** Permite mais de um bilhete por pessoa? (vale o de maior pontuação). */
+  multiTicket: boolean;
+  /** Disputa por pontos das variáveis, ou só pelo resultado final (1X2). */
+  scoring: PoolScoring;
   createdAt: number;
 }
+
+/** Regras configuráveis na criação de um bolão. */
+export interface PoolRules {
+  games: string[];
+  multiTicket: boolean;
+  scoring: PoolScoring;
+}
+
+const DEFAULT_RULES: PoolRules = { games: [], multiTicket: false, scoring: "points" };
 
 /** Opções de buy-in oferecidas ao criar um bolão. */
 export const BUY_IN_OPTIONS = [0, 50, 100] as const;
@@ -56,6 +74,9 @@ export const PLATFORM_POOL: Pool = {
   code: "GERAL",
   isPlatform: true,
   buyIn: 50,
+  games: [],
+  multiTicket: false,
+  scoring: "points",
   createdAt: 0,
 };
 
@@ -66,6 +87,9 @@ export const FIRMA_FC_POOL: Pool = {
   code: "FRMAFC",
   isPlatform: false,
   buyIn: 100,
+  games: [],
+  multiTicket: false,
+  scoring: "points",
   createdAt: 0,
 };
 
@@ -125,8 +149,14 @@ function read(): Pool[] {
         (p): p is Pool =>
           p && typeof p.id === "string" && typeof p.code === "string"
       )
-      // Compat: bolões salvos antes do buy-in não tinham o campo.
-      .map((p) => ({ ...p, buyIn: typeof p.buyIn === "number" ? p.buyIn : 0 }));
+      // Compat: bolões salvos antes destes campos ganham defaults.
+      .map((p) => ({
+        ...p,
+        buyIn: typeof p.buyIn === "number" ? p.buyIn : 0,
+        games: Array.isArray(p.games) ? p.games : [],
+        multiTicket: typeof p.multiTicket === "boolean" ? p.multiTicket : false,
+        scoring: p.scoring === "result" ? "result" : "points",
+      }));
   } catch {
     return [];
   }
@@ -160,7 +190,12 @@ export function getPool(id: string): Pool | undefined {
 }
 
 /** Cria um bolão novo (gera id + código único entre os locais) e salva. */
-export function createPool(name: string, buyIn: number, now: number): Pool {
+export function createPool(
+  name: string,
+  buyIn: number,
+  rules: Partial<PoolRules>,
+  now: number
+): Pool {
   const pools = read();
   let code = randomCode();
   const taken = new Set(pools.map((p) => p.code));
@@ -173,6 +208,9 @@ export function createPool(name: string, buyIn: number, now: number): Pool {
     code,
     isPlatform: false,
     buyIn: buyIn > 0 ? Math.round(buyIn) : 0,
+    games: Array.isArray(rules.games) ? rules.games : [],
+    multiTicket: !!rules.multiTicket,
+    scoring: rules.scoring === "result" ? "result" : "points",
     createdAt: now,
   };
   write([pool, ...pools]);
@@ -205,7 +243,15 @@ export function joinByCode(rawCode: string, now: number): Pool | null {
   const existing = read().find((p) => p.code === code);
   if (existing) return existing;
   return joinPool(
-    { id: newId(), name: `Bolão ${code}`, code, isPlatform: false, buyIn: 0, createdAt: now },
+    {
+      id: newId(),
+      name: `Bolão ${code}`,
+      code,
+      isPlatform: false,
+      buyIn: 0,
+      ...DEFAULT_RULES,
+      createdAt: now,
+    },
     now
   );
 }
@@ -223,7 +269,16 @@ export const POOL_HASH_PREFIX = "p=";
 /** Codifica um bolão em code base64url para o link de convite. */
 export function encodePool(pool: Pool): string {
   return toBase64Url(
-    JSON.stringify({ v: 1, i: pool.id, n: pool.name, c: pool.code, b: pool.buyIn })
+    JSON.stringify({
+      v: 1,
+      i: pool.id,
+      n: pool.name,
+      c: pool.code,
+      b: pool.buyIn,
+      g: pool.games,
+      m: pool.multiTicket ? 1 : 0,
+      s: pool.scoring,
+    })
   );
 }
 
@@ -235,6 +290,9 @@ export function decodePool(code: string): Pool | null {
       n?: unknown;
       c?: unknown;
       b?: unknown;
+      g?: unknown;
+      m?: unknown;
+      s?: unknown;
     };
     const c = typeof raw.c === "string" ? normalizeCode(raw.c) : "";
     if (!c) return null;
@@ -244,6 +302,9 @@ export function decodePool(code: string): Pool | null {
       code: c,
       isPlatform: false,
       buyIn: typeof raw.b === "number" && raw.b > 0 ? Math.round(raw.b) : 0,
+      games: Array.isArray(raw.g) ? (raw.g as string[]).filter((x) => typeof x === "string") : [],
+      multiTicket: raw.m === 1 || raw.m === true,
+      scoring: raw.s === "result" ? "result" : "points",
       createdAt: 0,
     };
   } catch {

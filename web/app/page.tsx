@@ -26,6 +26,7 @@ import {
   readInviteFromHash,
   prizeBreakdown,
   type Pool,
+  type PoolRules,
 } from "@/lib/pools";
 import { getIdentity, setNickname as persistNickname, type Identity } from "@/lib/identity";
 import {
@@ -220,8 +221,8 @@ export default function Home() {
   }, [activePoolId, hydrated]);
 
   // ---- Ações de bolão (a camada lib persiste; o estado espelha) ----
-  function handleCreatePool(name: string, buyIn: number) {
-    const pool = createPool(name, buyIn, Date.now());
+  function handleCreatePool(name: string, buyIn: number, rules: PoolRules) {
+    const pool = createPool(name, buyIn, rules, Date.now());
     setPools(listPools());
     setActivePoolId(pool.id);
   }
@@ -513,6 +514,11 @@ export default function Home() {
         members={activeMembers}
         standings={ranking}
         live={rankingSimulated}
+        fixtures={fixtures.map((f) => ({
+          id: f.id,
+          label: `${f.home.short}×${f.away.short}`,
+          stage: f.stage,
+        }))}
         copiedPoolId={copiedPoolId}
         onSelect={setActivePoolId}
         onCreate={handleCreatePool}

@@ -2,9 +2,24 @@
 
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { type Pool, BUY_IN_OPTIONS, moneyLabel, brl, prizeBreakdown } from "@/lib/pools";
+import {
+  type Pool,
+  type PoolScoring,
+  type PoolRules,
+  BUY_IN_OPTIONS,
+  moneyLabel,
+  brl,
+  prizeBreakdown,
+} from "@/lib/pools";
 import type { Identity } from "@/lib/identity";
 import { Ranking, type RankRow } from "@/components/Ranking";
+
+/** Jogo pro seletor na criação do bolão. */
+export interface FixtureOption {
+  id: string;
+  label: string;
+  stage: string;
+}
 
 interface PoolBarProps {
   pools: Pool[];
@@ -16,9 +31,11 @@ interface PoolBarProps {
   standings: RankRow[];
   /** Ranking simulado (antes do apito)? Mostra o selo "ao vivo" no painel. */
   live: boolean;
+  /** Jogos disponíveis pra escolher na criação do bolão. */
+  fixtures: FixtureOption[];
   copiedPoolId: string | null;
   onSelect: (poolId: string) => void;
-  onCreate: (name: string, buyIn: number) => void;
+  onCreate: (name: string, buyIn: number, rules: PoolRules) => void;
   onJoinCode: (code: string) => void;
   onLeave: (poolId: string) => void;
   onSetNickname: (name: string) => void;
@@ -35,6 +52,7 @@ export function PoolBar({
   members,
   standings,
   live,
+  fixtures,
   copiedPoolId,
   onSelect,
   onCreate,
@@ -46,6 +64,10 @@ export function PoolBar({
   const [panel, setPanel] = useState<Panel>("none");
   const [nameInput, setNameInput] = useState("");
   const [buyInInput, setBuyInInput] = useState<number>(0);
+  // Regras do bolão (criação): jogos, bilhetes/pessoa, modo de disputa.
+  const [gamesInput, setGamesInput] = useState<string[]>([]);
+  const [multiTicketInput, setMultiTicketInput] = useState(false);
+  const [scoringInput, setScoringInput] = useState<PoolScoring>("points");
   const [codeInput, setCodeInput] = useState("");
   const [nickInput, setNickInput] = useState(identity.nickname);
   // Painel do bolão (nome clicado): premiação + ranking + participantes.
@@ -77,11 +99,21 @@ export function PoolBar({
   function submitCreate() {
     const nm = nameInput.trim();
     if (!nm) return;
-    onCreate(nm, buyInInput);
+    onCreate(nm, buyInInput, {
+      games: gamesInput,
+      multiTicket: multiTicketInput,
+      scoring: scoringInput,
+    });
     setNameInput("");
     setBuyInInput(0);
+    setGamesInput([]);
+    setMultiTicketInput(false);
+    setScoringInput("points");
     setPanel("none");
   }
+
+  const toggleGame = (id: string) =>
+    setGamesInput((g) => (g.includes(id) ? g.filter((x) => x !== id) : [...g, id]));
 
   function submitJoin() {
     const cd = codeInput.trim();
@@ -357,6 +389,111 @@ export function PoolBar({
               </button>
             ))}
           </div>
+
+          {/* Jogos do bolão (multi-seleção; nenhum = todos) */}
+          <div>
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="font-mono text-[10px] uppercase tracking-widest text-chalk/40">
+                jogos <span className="text-chalk/25">· nenhum = todos</span>
+              </span>
+              {gamesInput.length > 0 && (
+                <button
+                  onClick={() => setGamesInput([])}
+                  className="font-mono text-[9px] uppercase tracking-widest text-chalk/35 transition hover:text-chalk"
+                >
+                  limpar ({gamesInput.length})
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {fixtures.map((fx) => {
+                const on = gamesInput.includes(fx.id);
+                return (
+                  <button
+                    key={fx.id}
+                    onClick={() => toggleGame(fx.id)}
+                    title={fx.stage}
+                    className={`border px-2 py-1 font-mono text-[10px] uppercase tracking-wide transition ${
+                      on
+                        ? "border-gold-400 bg-gold-400/10 text-gold-400"
+                        : "border-chalk/15 text-chalk-dim hover:border-chalk/40"
+                    }`}
+                  >
+                    {fx.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Bilhetes por pessoa */}
+          <div>
+            <div className="mb-1.5 font-mono text-[10px] uppercase tracking-widest text-chalk/40">
+              bilhetes por pessoa
+            </div>
+            <div className="flex gap-1.5">
+              <button
+                onClick={() => setMultiTicketInput(false)}
+                className={`border px-2.5 py-1 font-mono text-[11px] uppercase tracking-widest transition ${
+                  !multiTicketInput
+                    ? "border-gold-400 bg-gold-400/10 text-gold-400"
+                    : "border-chalk/20 text-chalk-dim hover:border-chalk/45 hover:text-chalk"
+                }`}
+              >
+                1 bilhete
+              </button>
+              <button
+                onClick={() => setMultiTicketInput(true)}
+                className={`border px-2.5 py-1 font-mono text-[11px] uppercase tracking-widest transition ${
+                  multiTicketInput
+                    ? "border-gold-400 bg-gold-400/10 text-gold-400"
+                    : "border-chalk/20 text-chalk-dim hover:border-chalk/45 hover:text-chalk"
+                }`}
+              >
+                Vários
+              </button>
+            </div>
+            {multiTicketInput && (
+              <p className="mt-1.5 border border-gold-400/30 bg-gold-400/[0.05] px-2.5 py-1.5 font-mono text-[10px] leading-relaxed text-gold-300">
+                ⚠ Vale o bilhete de MAIOR pontuação — todos os outros são eliminados.
+              </p>
+            )}
+          </div>
+
+          {/* Modo de disputa */}
+          <div>
+            <div className="mb-1.5 font-mono text-[10px] uppercase tracking-widest text-chalk/40">
+              disputa
+            </div>
+            <div className="flex gap-1.5">
+              <button
+                onClick={() => setScoringInput("points")}
+                className={`border px-2.5 py-1 font-mono text-[11px] uppercase tracking-widest transition ${
+                  scoringInput === "points"
+                    ? "border-gold-400 bg-gold-400/10 text-gold-400"
+                    : "border-chalk/20 text-chalk-dim hover:border-chalk/45 hover:text-chalk"
+                }`}
+              >
+                Por pontos
+              </button>
+              <button
+                onClick={() => setScoringInput("result")}
+                className={`border px-2.5 py-1 font-mono text-[11px] uppercase tracking-widest transition ${
+                  scoringInput === "result"
+                    ? "border-gold-400 bg-gold-400/10 text-gold-400"
+                    : "border-chalk/20 text-chalk-dim hover:border-chalk/45 hover:text-chalk"
+                }`}
+              >
+                Só resultado
+              </button>
+            </div>
+            <p className="mt-1 font-mono text-[9px] leading-relaxed text-chalk/35">
+              {scoringInput === "points"
+                ? "Ranking pelos pontos de cada variável (trava + mercados)."
+                : "Ranking só pelo resultado final (1X2) da(s) partida(s)."}
+            </p>
+          </div>
+
           <div className="flex justify-end">
             <button
               onClick={() => {
@@ -534,6 +671,47 @@ export function PoolBar({
                     em dinheiro.
                   </div>
                 )}
+              </div>
+
+              {/* Regras do bolão */}
+              <div>
+                <div className="mb-2 font-display text-sm uppercase tracking-[0.16em] text-chalk">
+                  📋 Regras
+                </div>
+                <ul className="space-y-1.5 font-mono text-[11px] leading-relaxed text-chalk-dim">
+                  <li>
+                    🎮 Jogos:{" "}
+                    <span className="text-chalk">
+                      {active.games.length
+                        ? active.games
+                            .map((id) => fixtures.find((f) => f.id === id)?.label ?? id)
+                            .join(" · ")
+                        : "todos os jogos"}
+                    </span>
+                  </li>
+                  <li>
+                    🎟️{" "}
+                    <span className="text-chalk">
+                      {active.multiTicket
+                        ? "Vários bilhetes por pessoa"
+                        : "1 bilhete por pessoa"}
+                    </span>
+                    {active.multiTicket && (
+                      <span className="text-gold-300">
+                        {" "}
+                        · vale o de maior pontuação (os outros são eliminados)
+                      </span>
+                    )}
+                  </li>
+                  <li>
+                    🏆 Disputa:{" "}
+                    <span className="text-chalk">
+                      {active.scoring === "points"
+                        ? "por pontos das variáveis"
+                        : "só resultado final (1X2)"}
+                    </span>
+                  </li>
+                </ul>
               </div>
 
               {/* Ranking */}
