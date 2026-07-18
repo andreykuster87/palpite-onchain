@@ -63,7 +63,7 @@ export function TicketBuilder({ fixture, markets, ticket, onChange, onSeal }: Pr
   return (
     <div className="space-y-6">
       {/* ---------- Trava do resultado ---------- */}
-      <div>
+      <div data-guide="resultado">
         <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <span className="font-display text-sm uppercase tracking-[0.18em] text-gold-400">
             1 · Trava · Resultado
@@ -101,7 +101,7 @@ export function TicketBuilder({ fixture, markets, ticket, onChange, onSeal }: Pr
       </div>
 
       {/* ---------- Variáveis-meme por setor ---------- */}
-      <div className="space-y-5">
+      <div data-guide="palpites" className="space-y-5">
         <div className="font-display text-sm uppercase tracking-[0.18em] text-gold-400">
           2 · Monte seu bilhete <span className="text-chalk/30">· escolha os mercados</span>
         </div>
@@ -194,6 +194,7 @@ export function TicketBuilder({ fixture, markets, ticket, onChange, onSeal }: Pr
         </div>
         <button
           type="button"
+          data-guide="selar"
           onClick={onSeal}
           className="w-full border border-gold-400 bg-gold-400 py-3.5 font-display text-lg uppercase tracking-[0.22em] text-night-950 shadow-[5px_5px_0_rgba(0,0,0,0.55)] transition hover:-translate-y-0.5 hover:bg-gold-300 active:translate-y-0 active:shadow-[2px_2px_0_rgba(0,0,0,0.55)]"
         >

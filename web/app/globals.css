@@ -163,3 +163,32 @@ body::after {
 .blink {
   animation: blink 1.6s ease-in-out infinite;
 }
+
+/* Guia "Como jogar": anel + seta que apontam pro alvo da ação. */
+@keyframes guide-ring {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 196, 0, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 0 9px rgba(255, 196, 0, 0);
+  }
+}
+.guide-ring {
+  border: 2px solid var(--color-gold-400);
+  background: rgba(255, 196, 0, 0.07);
+  animation: guide-ring 1s ease-in-out infinite;
+}
+@keyframes guide-bounce {
+  0%,
+  100% {
+    transform: translate(-50%, 0);
+  }
+  50% {
+    transform: translate(-50%, 8px);
+  }
+}
+.guide-arrow {
+  animation: guide-bounce 0.8s ease-in-out infinite;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+}

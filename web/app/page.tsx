@@ -497,6 +497,7 @@ export default function Home() {
 
       {/* ---------- Seletor de partidas ---------- */}
       <div
+        data-guide="jogo"
         className="reveal mb-8 flex gap-2.5 overflow-x-auto pb-1"
         style={{ animationDelay: "0.06s" }}
       >
