@@ -15,7 +15,7 @@ zera. Se acertar, cada variável secundária **soma** (acerto) ou **subtrai**
 ## Estrutura do repositório
 
 ```
-palpite-onchain/
+4line/
 ├── docs/
 │   ├── 01-verificacao-api-txline.md   # o que o TxLINE entrega (verificado)
 │   └── 02-design-do-jogo.md           # regras, pontuação e arquitetura

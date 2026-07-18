@@ -1,4 +1,4 @@
-// Palpite On-Chain — programa Anchor da liga (ESBOÇO / skeleton).
+// 4Line On-Chain — programa Anchor da liga (ESBOÇO / skeleton).
 //
 // Responsabilidades do contrato:
 //   - Criar uma liga com buy-in, janela de submissão e fixture(s) alvo.

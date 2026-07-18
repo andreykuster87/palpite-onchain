@@ -75,7 +75,7 @@ placar.
 ## Links da submissão
 
 - **App ao vivo:** https://4line-onchain.vercel.app (oráculo TxLINE ativo em produção)
-- **Repositório:** https://github.com/andreykuster87/palpite-onchain
+- **Repositório:** https://github.com/andreykuster87/4line
 - **Vídeo demo:** _(a gravar — roteiro em `docs/04-roteiro-video.md`)_
 
 ## Checklist de submissão

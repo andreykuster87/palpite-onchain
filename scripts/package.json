@@ -1,5 +1,5 @@
 {
-  "name": "palpite-onchain-scripts",
+  "name": "4line-onchain-scripts",
   "private": true,
   "type": "module",
   "description": "Scripts de devnet: ativação do tier grátis TxLINE e verificações.",

@@ -73,7 +73,7 @@ Pontos por acerto, sem dinheiro real (fora do regime de iGaming). Trilha Consume
 - Motor de pontuação testado `web/lib/scoring.mjs` (trava 1X2 + over/under)
 - Rotas `/api/fixtures` e `/api/scores/[fixtureId]` (token só no servidor)
 - 8 fixtures do mata-mata com stats reais (`web/lib/copa.ts`)
-- Repo público: github.com/andreykuster87/palpite-onchain
+- Repo público: github.com/andreykuster87/4line
 
 **O fluxo alvo (2 telas)** — mockups já aprovados nesta sessão:
 1. **Montar** — builder: variáveis opt-in por setor (Craques / Time / Zoeira) e
