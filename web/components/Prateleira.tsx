@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import type { Ticket, Camada } from "@/lib/scoring";
 import { LAYER_POINTS } from "@/lib/scoring.mjs";
 import type { CopaFixture } from "@/lib/copa";
@@ -404,10 +405,13 @@ export function Prateleira({
         </div>
       )}
 
-      {/* ---------- Bilhete maximizado (revisão + inscrição) ---------- */}
-      {openEntry && openDetail && (
+      {/* ---------- Bilhete maximizado (revisão + inscrição) — portal p/ escapar
+           do ancestral com transform (reveal) e cobrir a viewport inteira ---------- */}
+      {openEntry &&
+        openDetail &&
+        createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-night-950/85 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-night-950/90 p-4 backdrop-blur-sm"
           onClick={() => setOpenId(null)}
           role="dialog"
           aria-modal="true"
@@ -632,7 +636,8 @@ export function Prateleira({
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </section>
   );

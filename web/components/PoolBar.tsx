@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { type Pool, BUY_IN_OPTIONS, moneyLabel } from "@/lib/pools";
 import type { Identity } from "@/lib/identity";
 import { Ranking, type RankRow } from "@/components/Ranking";
@@ -456,10 +457,12 @@ export function PoolBar({
         </PanelForm>
       )}
 
-      {/* ---------- Painel do bolão (nome clicado) ---------- */}
-      {showPanel && (
+      {/* ---------- Painel do bolão (nome clicado) — portal p/ escapar do
+           ancestral com transform (reveal), senão o fixed não cobre a viewport ---------- */}
+      {showPanel &&
+        createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-night-950/85 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-night-950/90 p-4 backdrop-blur-sm"
           onClick={() => setShowPanel(false)}
           role="dialog"
           aria-modal="true"
@@ -601,7 +604,8 @@ export function PoolBar({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

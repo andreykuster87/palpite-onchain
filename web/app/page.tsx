@@ -618,7 +618,7 @@ export default function Home() {
                       disabled={whistling}
                       className="flex-1 border border-gold-400 bg-gold-400 py-3.5 font-display text-lg uppercase tracking-[0.22em] text-night-950 shadow-[5px_5px_0_rgba(0,0,0,0.55)] transition hover:-translate-y-0.5 hover:bg-gold-300 active:translate-y-0 active:shadow-[2px_2px_0_rgba(0,0,0,0.55)] disabled:cursor-wait disabled:opacity-70"
                     >
-                      {whistling ? "Consultando oráculo…" : "🔔 Apitar fim de jogo"}
+                      {whistling ? "Selando palpite…" : "🔒 Selar palpite"}
                     </button>
                   )}
                   <button
@@ -636,8 +636,8 @@ export default function Home() {
                 </div>
                 {!finished && (
                   <p className="text-center font-mono text-[11px] leading-relaxed text-chalk/35">
-                    Bilhete selado (commit). O apito consulta o oráculo TxLINE; sem
-                    dado final disponível, roda uma simulação rotulada.
+                    Selar consulta o oráculo TxLINE pra pontuar; sem dado final
+                    disponível, roda uma simulação rotulada.
                   </p>
                 )}
               </div>
