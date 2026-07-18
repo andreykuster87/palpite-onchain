@@ -11,6 +11,7 @@ import { TicketBuilder } from "@/components/TicketBuilder";
 import { SealedTicket } from "@/components/SealedTicket";
 import { TicketScore } from "@/components/TicketScore";
 import { Ranking, type RankRow } from "@/components/Ranking";
+import { readShareFromHash, buildShareUrl, type SharedTicket } from "@/lib/share";
 
 // v4: bilhetes-meme (Ticket) com catálogo por fixture.
 const STORAGE_KEY = "palpite:tickets:v4";
@@ -53,10 +54,15 @@ export default function Home() {
   const [whistled, setWhistled] = useState<WhistledMap>({});
   const [whistling, setWhistling] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  // Bilhete compartilhado carregado do hash da URL (#b=…), se houver.
+  const [incoming, setIncoming] = useState<SharedTicket | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const fixture = fixtures.find((f) => f.id === fixtureId) ?? fixtures[0];
   const savedEntry = saved[fixture.id];
   const finished = whistled[fixture.id];
+  // Estamos vendo um bilhete que veio de um amigo (para esta fixture)?
+  const fromFriend = !!incoming && incoming.fixtureId === fixture.id;
 
   // Catálogo de mercados-meme desta fixture (nomes dos times + linhas tecidos).
   const markets = useMemo(() => catalogFor(fixture), [fixture]);
@@ -71,6 +77,16 @@ export default function Home() {
         setDataSource(d.source === "txline" ? "txline" : "seed");
       })
       .catch(() => setDataSource("seed"));
+  }, []);
+
+  // Abriu um link com #b=… ? Decodifica o bilhete do amigo e vai pra fixture dele.
+  useEffect(() => {
+    const shared = readShareFromHash();
+    if (!shared) return;
+    setIncoming(shared);
+    if (COPA_FIXTURES.some((fx) => fx.id === shared.fixtureId)) {
+      setFixtureId(shared.fixtureId);
+    }
   }, []);
 
   // Hidrata do localStorage no cliente.
@@ -94,16 +110,43 @@ export default function Home() {
     }
   }, [saved, hydrated]);
 
-  // Ao trocar de fixture, carrega o bilhete selado (se houver) no rascunho.
+  // Ao trocar de fixture, decide o que vai pro rascunho:
+  //  1) bilhete já selado desta fixture (não sobrescreve);
+  //  2) bilhete de um amigo (link), com os picks saneados contra o catálogo;
+  //  3) rascunho novo.
   useEffect(() => {
-    setDraft(saved[fixture.id]?.ticket ?? newDraft());
-  }, [fixture.id, saved]);
+    const savedTicket = saved[fixture.id]?.ticket;
+    if (savedTicket) {
+      setDraft(savedTicket);
+      return;
+    }
+    if (incoming && incoming.fixtureId === fixture.id) {
+      const picks = incoming.ticket.picks.filter((p) => marketsMap[p.marketId]);
+      setDraft({ result: incoming.ticket.result, picks });
+      return;
+    }
+    setDraft(newDraft());
+  }, [fixture.id, saved, incoming, marketsMap]);
 
   function handleSeal() {
     setSaved((s) => ({
       ...s,
       [fixture.id]: { ticket: draft, submittedAt: Date.now() },
     }));
+  }
+
+  /** Gera o link do bilhete selado e copia pro clipboard (com fallback). */
+  async function shareTicket() {
+    if (!savedEntry) return;
+    const url = buildShareUrl(fixture.id, savedEntry.ticket);
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2200);
+    } catch {
+      // Clipboard indisponível (contexto não-seguro): mostra pra copiar à mão.
+      window.prompt("Copie o link do seu bilhete:", url);
+    }
   }
 
   function reopen() {
@@ -349,13 +392,28 @@ export default function Home() {
             </div>
 
             {!savedEntry ? (
-              <TicketBuilder
-                fixture={fixture}
-                markets={markets}
-                ticket={draft}
-                onChange={setDraft}
-                onSeal={handleSeal}
-              />
+              <>
+                {fromFriend && (
+                  <div className="mb-5 flex items-start gap-2.5 border border-dashed border-gold-400/40 bg-gold-400/[0.06] px-3.5 py-2.5">
+                    <span className="text-base leading-none">🎟️</span>
+                    <div className="font-mono text-[11px] leading-relaxed text-gold-300">
+                      <span className="uppercase tracking-widest text-gold-400">
+                        Bilhete de um amigo
+                      </span>
+                      <br />
+                      Já preenchemos os mesmos palpites. Revise, ajuste se quiser e
+                      sele o <span className="text-chalk">seu</span>.
+                    </div>
+                  </div>
+                )}
+                <TicketBuilder
+                  fixture={fixture}
+                  markets={markets}
+                  ticket={draft}
+                  onChange={setDraft}
+                  onSeal={handleSeal}
+                />
+              </>
             ) : (
               <div className="space-y-5">
                 <div className="relative">
@@ -391,6 +449,12 @@ export default function Home() {
                       {whistling ? "Consultando oráculo…" : "🔔 Apitar fim de jogo"}
                     </button>
                   )}
+                  <button
+                    onClick={shareTicket}
+                    className="border border-gold-400/60 px-4 py-3.5 font-mono text-xs uppercase tracking-widest text-gold-400 transition hover:border-gold-400 hover:bg-gold-400/10"
+                  >
+                    {copied ? "✓ link copiado" : "🔗 Compartilhar"}
+                  </button>
                   <button
                     onClick={reopen}
                     className="border border-chalk/20 px-4 py-3.5 font-mono text-xs uppercase tracking-widest text-chalk-dim transition hover:border-chalk/45 hover:text-chalk"
