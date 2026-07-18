@@ -12,6 +12,7 @@ import { SealedTicket } from "@/components/SealedTicket";
 import { TicketScore } from "@/components/TicketScore";
 import { Ranking, type RankRow } from "@/components/Ranking";
 import { readShareFromHash, buildShareUrl, type SharedTicket } from "@/lib/share";
+import { Prateleira } from "@/components/Prateleira";
 
 // v4: bilhetes-meme (Ticket) com catálogo por fixture.
 const STORAGE_KEY = "palpite:tickets:v4";
@@ -56,7 +57,8 @@ export default function Home() {
   const [hydrated, setHydrated] = useState(false);
   // Bilhete compartilhado carregado do hash da URL (#b=…), se houver.
   const [incoming, setIncoming] = useState<SharedTicket | null>(null);
-  const [copied, setCopied] = useState(false);
+  // fixtureId cujo link foi copiado agora há pouco (feedback "✓ copiado").
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const fixture = fixtures.find((f) => f.id === fixtureId) ?? fixtures[0];
   const savedEntry = saved[fixture.id];
@@ -67,6 +69,21 @@ export default function Home() {
   // Catálogo de mercados-meme desta fixture (nomes dos times + linhas tecidos).
   const markets = useMemo(() => catalogFor(fixture), [fixture]);
   const marketsMap = useMemo(() => catalogMap(markets), [markets]);
+
+  // Minha prateleira: todos os bilhetes que selei (por fixture), do mais novo.
+  const shelf = useMemo(
+    () =>
+      Object.entries(saved)
+        .map(([fid, e]) => {
+          const fx = fixtures.find((f) => f.id === fid);
+          return fx
+            ? { fixtureId: fid, fixture: fx, ticket: e.ticket, submittedAt: e.submittedAt }
+            : null;
+        })
+        .filter((x): x is NonNullable<typeof x> => x !== null)
+        .sort((a, b) => b.submittedAt - a.submittedAt),
+    [saved, fixtures]
+  );
 
   // Fixtures ao vivo da API (cai no seed embutido se indisponível).
   useEffect(() => {
@@ -135,14 +152,18 @@ export default function Home() {
     }));
   }
 
-  /** Gera o link do bilhete selado e copia pro clipboard (com fallback). */
-  async function shareTicket() {
-    if (!savedEntry) return;
-    const url = buildShareUrl(fixture.id, savedEntry.ticket);
+  /** Gera o link de um bilhete selado (por fixture) e copia pro clipboard. */
+  async function shareById(fid: string) {
+    const entry = saved[fid];
+    if (!entry) return;
+    const url = buildShareUrl(fid, entry.ticket);
     try {
       await navigator.clipboard.writeText(url);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2200);
+      setCopiedId(fid);
+      window.setTimeout(
+        () => setCopiedId((c) => (c === fid ? null : c)),
+        2200
+      );
     } catch {
       // Clipboard indisponível (contexto não-seguro): mostra pra copiar à mão.
       window.prompt("Copie o link do seu bilhete:", url);
@@ -450,10 +471,10 @@ export default function Home() {
                     </button>
                   )}
                   <button
-                    onClick={shareTicket}
+                    onClick={() => shareById(fixture.id)}
                     className="border border-gold-400/60 px-4 py-3.5 font-mono text-xs uppercase tracking-widest text-gold-400 transition hover:border-gold-400 hover:bg-gold-400/10"
                   >
-                    {copied ? "✓ link copiado" : "🔗 Compartilhar"}
+                    {copiedId === fixture.id ? "✓ link copiado" : "🔗 Compartilhar"}
                   </button>
                   <button
                     onClick={reopen}
@@ -494,6 +515,17 @@ export default function Home() {
           {ranking.length > 0 && <Ranking rows={ranking} />}
         </aside>
       </div>
+
+      {/* ---------- Minha prateleira (bilhetes selados, compartilháveis) ---------- */}
+      {shelf.length > 0 && (
+        <Prateleira
+          entries={shelf}
+          activeId={fixture.id}
+          copiedId={copiedId}
+          onOpen={setFixtureId}
+          onShare={shareById}
+        />
+      )}
 
       <footer className="mt-14 border-t border-chalk/8 pt-5 text-center font-mono text-[11px] uppercase tracking-widest text-chalk/25">
         Copa 2026 · oráculo TxLINE (devnet) · motor lib/scoring.mjs · liquidação
