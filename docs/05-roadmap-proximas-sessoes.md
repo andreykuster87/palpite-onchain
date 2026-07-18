@@ -1,172 +1,141 @@
-# Roadmap — próximas sessões (4Line On-Chain)
+# Roadmap — 4Line On-Chain · build dos bilhetes-meme
 
-_Decisões fechadas com o Andrey em 2026-07-17. Re-priorizado no mesmo dia contra
-os **critérios oficiais de julgamento** da trilha Consumer & Fan Experiences.
-Este doc é o plano de execução — nada aqui foi codado ainda._
-
----
-
-## 0. Prioridade absoluta: fechar a submissão
-
-Deadline **2026-07-18 23:59** (confirmar fuso — listing é Superteam Brasil).
-
-- [ ] Gravar vídeo demo ≤5min (roteiro em `docs/04-roteiro-video.md`)
-- [ ] Submeter nos 2 links (trilha global Consumer + Superteam Brasil)
-
-Já pronto: app no ar em https://4line-onchain.vercel.app · repo público ·
-oráculo TxLINE ativo em produção.
-
-> **Os judges avaliam pesado pelo vídeo.** Como os jogos terminam perto/depois do
-> deadline, pode não haver atividade ao vivo durante a análise — o vídeo é que
-> tem que mostrar a experiência, o fluxo do usuário e a funcionalidade central.
+_Atualizado em 2026-07-17. **Decisão: Opção 2** — os bilhetes-meme viram o MVP
+jogável (não só visão de vídeo). Este doc é o plano de execução da próxima
+sessão._
 
 ---
 
-## Onde estamos vs. os critérios oficiais (auditado em 17/07)
+## ▶️ FRASE PRA INICIAR A PRÓXIMA SESSÃO (cole isto)
 
-| Critério | Status | Observação |
-|---|:---:|---|
-| Fan Accessibility & UX | 🟡 | Visual polido, zero atrito (não exige wallet). Mas single-player, sem social, sem motivo pra voltar. |
-| **Real-Time Responsiveness** | ❌ | **Maior buraco.** Zero live update no código (sem `setInterval`/`EventSource`/`/stream`). O "apitar" é botão manual. |
-| Originality & Value Creation | ✅ | Trava 1X2 + variáveis opt-in é mecânica nova, não repackage de feed. |
-| Commercial & Monetization Path | 🟡 | Existe no design doc (rake, buy-in), mas não aparece no app nem na narrativa. |
-| Completeness & Execution | ✅ | Ponta a ponta, deployado, testado, oráculo real. |
-
----
-
-## 1. 🔴 Live / in-play (maior alavanca)
-
-**Por quê:** ataca diretamente o critério que mais perdemos. O critério é
-explícito sobre *"update fluidly based on what is actively unfolding on the
-pitch"* — hoje somos um app de antes/depois, não de **durante**.
-
-**Janela de ouro:** a decisão de **3º lugar FRA × ENG é 18/07 às 21:00 UTC
-(18h de Brasília)** — antes do deadline das 23:59. Dá pra **gravar o vídeo demo
-durante um jogo real**, com dado do TxLINE chegando ao vivo na tela. É o
-argumento mais forte possível, no artefato que mais pesa.
-
-**Escopo:**
-- Consumir o stream do TxLINE (`/scores/stream`, SSE — ver
-  `subscription_scores.ts` nos exemplos do `txodds/tx-on-chain`), ou polling do
-  `/scores/snapshot/{id}` como fallback simples.
-- Placar/estatísticas atualizando sozinhos durante a partida.
-- Pontuação da cartela recalculando ao vivo conforme o jogo anda ("você está
-  ganhando +13 agora") — o motor `scoreCartela` é puro, roda a cada update.
-- Ranking se reordenando ao vivo.
-- Estado da partida real (em andamento / encerrado) em vez do botão "apitar"
-  manual — manter o apito só como modo replay/demo para jogos já encerrados.
-
-**Pendência conhecida:** `GameState` do snapshot vem "scheduled" mesmo em jogo
-encerrado — não confiar nele; usar `Seq`/timestamps ou o stream. Ver
-[[gotchas-txline-api]].
+> Retomar o **4Line On-Chain** (pasta `C:\Coach`). Decisão fechada: **Opção 2** —
+> implementar os **bilhetes-meme** como MVP jogável. Ler
+> `docs/05-roadmap-proximas-sessoes.md` e começar pela **Fase A**. O app Next.js
+> está em `web/`, já deployado (4line-onchain.vercel.app) e com o token TxLINE em
+> `web/.env.local` (devnet, funcionando). Reusar o motor `web/lib/scoring.mjs` e
+> os endpoints já prontos (`/api/fixtures`, `/api/scores/[id]`). NÃO quebrar o que
+> está no ar. Deadline do hackathon: 18/07 23:59.
 
 ---
 
-## 2. 🟠 Linhas vindas do feed de odds (corrige furo real)
+## Contexto (onde estamos)
 
-**Por quê:** o próprio "About TxLINE" se vende como *"real-time sports data and
-**consensus betting odds**"*. Hoje usamos só metade: as linhas over/under
-(2.5 / 4.5 / 9.5) são **constantes inventadas** em `web/lib/copa.ts`
-(`KNOCKOUT_LINES`), não vêm do oráculo. Um judge da TxODDS provavelmente nota.
+**O que é:** bolão da Copa provably-fair na Solana. O usuário **monta o próprio
+bilhete** escolhendo variáveis-meme ("Chuva de gols", "Messi decide?", "Chá de
+cartão argentino") — cada zoeira por cima, um mercado real do TxLINE por baixo.
+Pontos por acerto, sem dinheiro real (fora do regime de iGaming). Trilha Consumer
+& Fan Experiences.
 
-**Escopo:**
-- Consumir `/odds/snapshot/{fixtureId}` (StablePrice) e derivar as linhas reais
-  de cada partida.
-- Exibir a linha como dado do oráculo, não como número mágico.
-- **Bônus:** destrava a pontuação odds-weighted (item 4, fase 2).
+**Já está pronto e NO AR (não quebrar):**
+- App Next.js em `web/`, deployado em https://4line-onchain.vercel.app
+- Oráculo TxLINE ativo (token em `web/.env.local`; ver [[gotchas-txline-api]])
+- Motor de pontuação testado `web/lib/scoring.mjs` (trava 1X2 + over/under)
+- Rotas `/api/fixtures` e `/api/scores/[fixtureId]` (token só no servidor)
+- 8 fixtures do mata-mata com stats reais (`web/lib/copa.ts`)
+- Repo público: github.com/andreykuster87/palpite-onchain
 
----
-
-## 3. 🟡 Narrativa de monetização (barato, alto retorno)
-
-**Por quê:** é um critério inteiro onde estamos em cima do muro, e custa quase
-nada consertar — é comunicação, não código.
-
-**Escopo:**
-- Surfacear no vídeo e no `docs/03-submissao-hackathon.md`: ligas com buy-in +
-  rake da casa, ligas privadas patrocinadas, white-label para casas/mídia
-  esportiva, tier grátis → premium.
-- Opcional: um teaser discreto na UI ("liga com prêmio — em breve").
+**O fluxo alvo (2 telas)** — mockups já aprovados nesta sessão:
+1. **Montar** — builder: variáveis opt-in por setor (Craques / Time / Zoeira) e
+   dificuldade, com total de pontos ao vivo.
+2. **Confirmar** — bilhete selado com os palpites, % da galera, commit e carimbo.
 
 ---
 
-## 4. 🟢 Pontuação em camadas + cardápio de variáveis
+## Dados TxLINE confirmados (base do catálogo)
 
-_(Design fechado com o Andrey — aprofunda "Originality", que já é forte.)_
+**Por time** (statKeys 1–8, jogo inteiro + prefixos de período 1000=1ºT, 3000=2ºT):
+gols, amarelos, vermelhos, escanteios.
 
-**Princípio (Andrey):** recompensa proporcional à improbabilidade. Variáveis são
-**opt-in** — o jogador escolhe quais palpitar.
+**Por jogador** (`PlayerStats`, confirmado ao vivo — CORREÇÃO de doc anterior que
+dizia "jogador não cabe": **cabe sim**): `goals`, `yellowCards`, `redCards`,
+`penaltyAttempts`, `penaltyGoals`. Escalação com nome real via `Lineups`.
 
-**Assimetria +5 / −3:** equilíbrio em ~37,5% de acerto → chute no escuro perde
-no longo prazo, palpite informado ganha. Reforça "jogo de habilidade".
+**Endpoints:** `/fixtures/snapshot?competitionId=72` · `/scores/snapshot/{id}` ·
+`/scores/historical/{id}` (play-by-play completo, base do "replay ao vivo").
+
+**A confirmar:** chutes a gol (time e jogador); provabilidade on-chain por
+jogador via `validateStatV2` (não bloqueia o jogo de pontos — resolvemos lendo o
+oráculo).
+
+**Catálogo possível:** ~24 variáveis de Time + ~15-20 de Craques (curado) + Zoeira
+= ~40 por jogo. Gargalo é curadoria, não dado.
+
+---
+
+## Pontuação v2 (motor)
 
 | Camada | Exemplos | Acerto | Erro |
 |---|---|:---:|:---:|
 | Fácil (over/under ~50/50) | total de gols, cartões, escanteios | +5 | −3 |
-| Média (mais específico) | total exato, ambas marcam + resultado, gols por tempo | +8 | −3 |
-| Difícil (raro) | **placar exato** | **+15** | **−5** |
+| Média | ambas marcam, cartões por time, craque marca, craque leva cartão | +8 | −3 |
+| Difícil (raro) | placar exato, artilheiro do jogo, converte pênalti | +15 | −5 |
+| Zoeira | "vai ter choro?" | não pontua |
 
-- **Trava 1X2** permanece: errou o resultado, cartela zera.
-- Penalidade do placar exato (−5) maior de propósito: encarece o chute barato.
-- É troca de valores em `DEFAULT_CONFIG` + conceito de camada/multiplicador —
-  `scoreCartela` já suporta peso/penalidade por variável.
-
-### Cardápio de variáveis (ir de ~5 para 15+)
-
-| Camada | Variáveis | Status |
-|---|---|---|
-| Confirmado no feed | 1X2, placar exato, total de gols, cartões, escanteios, vermelho sim/não | ✅ statKeys 1–8 vistos no payload real |
-| **Por tempo** (grande desbloqueio) | qualquer uma acima por período: "+1.5 gols no 1ºT", "escanteios no 2ºT", "cartão até o intervalo" | ✅ prefixos confirmados (1000=1ºT, 3000=2ºT) |
-| Derivados dos gols | ambas marcam (BTTS), clean sheet, vitória por 2+ | ✅ calculável do que já temos |
-| A confirmar na devnet | chutes no gol, total de chutes, faltas, impedimentos, pênaltis, VAR | 🟡 doc cita, statKey não visto |
-| **NÃO implementar** | melhor em campo, artilheiro, assistências | ❌ feed é por time, não por jogador — quebraria o provably-fair |
-
-**UX:** não sobrecarregar. 3–4 variáveis em destaque + "modo avançado" pro resto.
-
-### Jogo-destaque (multiplicador)
-
-- Marcar uma partida da rodada como "destaque" → pontos **×2**. Não precisa de
-  dado novo, é regra de jogo. Adiciona tensão: arrisca mais no jogo que domina.
-
-### Fase 2: odds-weighted (depende do item 2)
-
-- Derivar a pontuação da **odd real** do feed: palpite improvável = mais pontos,
-  **provado pelo oráculo**. Automatiza o princípio "improvável vale mais".
-- Resolve o risco de **farmar** variáveis fáceis (ex.: "+0.5 gols" acerta ~95%).
-- Mitigação até lá: curar as linhas para serem ~50/50.
+- **Trava 1X2** mantida: errou o resultado, bilhete zera.
+- Assimetria +5/−3 → equilíbrio em ~37,5% de acerto (recompensa habilidade).
+- Ponto em aberto: penalidade do placar exato (−5) a calibrar com playtest.
 
 ---
 
-## 5. ⚪ Wallet Phantom (desceu de prioridade)
+## O QUE CONSTRUIR — em fases (por risco/prazo)
 
-**Por que desceu:** não aparece em **nenhum** critério de julgamento da trilha
-Consumer. E sem wallet o judge testa o app em 2 segundos — o que na verdade
-**ajuda** o critério de Fan Accessibility. Continua sendo boa ideia de produto,
-mas não é o melhor uso das horas antes do deadline.
+### 🔴 Fase A — Bilhete-meme jogável (MVP crítico, só mercados de TIME)
+_Entrega a experiência de bilhete-meme reusando o que já existe. Sem jogador
+ainda, pra não depender de escalação nem de mudanças no adapter._
 
-**Escopo (quando for):** conectar Phantom (wallet-adapter) = identidade;
-`signMessage()` ao selar a cartela = commit-reveal real (grátis, sem transação,
-sem gastar SOL); wallet no ranking; assinatura exibida no bilhete como prova.
+1. **Catálogo de variáveis** por fixture — nova estrutura (ex.: `web/lib/catalog.ts`):
+   cada mercado = `{ id, setor, memeNome, emoji, camada, resolve: {tipo, stat,
+   cmp, linha, lado}, pontos }`. Escrever os mercados-meme de TIME para os jogos
+   cobertos, mapeando cada um a um stat que já temos em `MatchStats`.
+2. **Motor v2** — `scoreTicket(ticket, stats)` com as camadas acima (estender ou
+   compor com `scoreCartela`). Manter testes.
+3. **Tela Montar (builder)** — componente novo; grupos por setor, seleção opt-in,
+   MAIS/MENOS por item, tally de pontos ao vivo. (Base visual: mockup
+   `montar_bilhete`.)
+4. **Tela Confirmar (bilhete selado)** — selações + commit local + carimbo.
+   (Base visual: mockup `bilhete_selado`.)
+5. **Ligar ao apito/replay** já existente pra resolver e pontuar.
+6. Rodar testes + deploy. **Checkpoint: app com bilhete-meme jogável no ar.**
 
-**Decisões em aberto:** obrigatória vs opcional; compatibilidade wallet-adapter
-× Next 15.5 / React 19 (peer-deps).
+### 🟠 Fase B — Craques (variáveis por jogador)
+1. Estender o **adapter** (`web/lib/txline-adapter.mjs`) pra extrair `PlayerStats`
+   + `Lineups` (playerId → nome + stats por jogador).
+2. Rota/So exposição dos jogadores por fixture (pra popular os selects "escolha o
+   craque").
+3. Catálogo de mercados de CRAQUE (marca / 2+ / amarelo / vermelho / pênalti /
+   artilheiro do jogo / primeiro a marcar).
+4. `scoreTicket` resolve mercados de jogador lendo `PlayerStats`.
+5. Builder ganha a seção **👑 Craques** (mockup `montar_bilhete_v2_craques`).
+
+### 🟢 Fase C — Consenso, destaque, odds (se sobrar tempo)
+- **% da galera** por item (opinião em massa = odd) + bônus por ir contra a maioria.
+- **Jogo-destaque** ×2 na rodada.
+- **Odds-weighted** derivado do feed StablePrice (`/odds/snapshot`) — resolve o
+  "farmar" variável fácil; substitui as linhas hoje inventadas em `copa.ts`.
 
 ---
 
-## 6. Fases futuras (pós-hackathon)
+## ⚠️ Reality check de prazo (honesto)
 
-- **Supabase:** ligas compartilhadas reais (várias pessoas, leaderboard ao vivo,
-  código de convite). É o que falta pro "bolão entre amigos" completo — e ataca
-  o "abriria regularmente" do critério de Fan Accessibility.
-- **On-chain settlement (trilha Prediction Markets):** contrato Anchor de escrow
-  + `validateStatV2` liquidando contra prova de Merkle. Esboço em
-  `contracts/programs/liga/src/lib.rs`.
-- **Dinheiro real:** revisão jurídica de iGaming + KYC + mainnet.
+Deadline **18/07 23:59**. A submissão tem 3 obrigatórios: link ✅, repo ✅ e
+**vídeo demo** (sem ele, desclassifica na triagem). Sequência acordada:
+**plataforma primeiro, vídeo por último.**
+
+- **Fase A é o alvo realista** pro deadline — entrega a experiência de bilhete-meme.
+- **Fase B/C são stretch** — só se A ficar estável com folga.
+- **Reservar ~40-60 min no fim pro vídeo** (Loom, gravação de tela ≤5min). Não é
+  negociável: app pronto sem vídeo = fora.
+
+Regra de ouro: se A não fechar a tempo, **grava-se o vídeo com o que estiver
+estável** (nem que seja o app atual + mockups como visão). Vídeo entregue > feature
+não submetida.
 
 ---
 
-## Comportamento já pronto (nada a fazer)
-
-- **Final ESP × ARG (19/07):** o app consulta o oráculo a cada apito; hoje cai em
-  simulação rotulada, mas assim que o TxLINE publicar o resultado real, o site
-  mostra o placar de verdade automaticamente — sem tocar em código.
+## Pós-hackathon (fases futuras)
+- **Wallet Phantom** — identidade + `signMessage` (commit-reveal real, sem dinheiro).
+- **Supabase** — ligas compartilhadas reais, leaderboard ao vivo, convite.
+- **Live/in-play via `/scores/stream`** — atualização ao vivo durante a partida.
+- **Camada social curada** (cards compartilháveis, reações-meme) — sem scraping.
+- **On-chain settlement** (`validateStatV2`) → trilha Prediction Markets.
+- **Dinheiro real** — revisão jurídica de iGaming + KYC + mainnet.
