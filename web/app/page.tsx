@@ -55,6 +55,11 @@ function demoFill(fixture: CopaFixture): MatchStats {
     cornersAway: 4,
     goalsHome: 1,
     goalsAway: 1,
+    // Craques (agregado plausível p/ o modo demo — jogo sem dado final real).
+    topScorerGoals: 1,
+    penGoalsTotal: 0,
+    penAttemptsTotal: 0,
+    maxPlayerYellows: 1,
     ...fixture.finalStats,
     ...fixture.demoStats,
   };

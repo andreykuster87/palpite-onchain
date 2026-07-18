@@ -18,7 +18,7 @@
 import type { Camada, MarketResolve } from "./scoring";
 import type { CopaFixture } from "./copa";
 
-export type Setor = "estatisticas" | "zoeira";
+export type Setor = "estatisticas" | "craques" | "zoeira";
 
 export interface Market {
   id: string;
@@ -50,11 +50,12 @@ export const CAMADA_META: Record<
 
 export const SETOR_META: Record<Setor, { label: string; emoji: string }> = {
   estatisticas: { label: "Estatísticas", emoji: "📊" },
+  craques: { label: "Craques", emoji: "👑" },
   zoeira: { label: "Zoeira", emoji: "🤡" },
 };
 
 /** Ordem de exibição dos setores no builder. */
-export const SETOR_ORDER: Setor[] = ["estatisticas", "zoeira"];
+export const SETOR_ORDER: Setor[] = ["estatisticas", "craques", "zoeira"];
 
 /**
  * Monta o catálogo de mercados-meme de uma fixture, tecendo os nomes dos
@@ -162,6 +163,65 @@ export function catalogFor(fixture: CopaFixture): Market[] {
       naoLabel: "NINGUÉM EXPULSO",
       camada: "dificil",
       resolve: { metric: "redsTotal", cmp: "atLeast", line: 1 },
+    },
+
+    // ================= 👑 CRAQUES (pontua · via PlayerStats real) =================
+    // O feed dá stats por jogador (por ID, sem nome), então os mercados são
+    // AGREGADOS: "algum craque faz X". Resolvem contra PlayerStats de verdade.
+    {
+      id: "craque-artilheiro-2",
+      setor: "craques",
+      emoji: "👑",
+      nome: "Artilheiro cravado",
+      pergunta: "Algum craque faz 2 ou mais?",
+      simLabel: "FAZ 2+",
+      naoLabel: "NÃO ROLA",
+      camada: "media",
+      resolve: { metric: "topScorerGoals", cmp: "atLeast", line: 2 },
+    },
+    {
+      id: "craque-hattrick",
+      setor: "craques",
+      emoji: "🎩",
+      nome: "Chapéu de gols",
+      pergunta: "Alguém faz hat-trick (3+)?",
+      simLabel: "HAT-TRICK",
+      naoLabel: "SEM CHAPÉU",
+      camada: "dificil",
+      resolve: { metric: "topScorerGoals", cmp: "atLeast", line: 3 },
+    },
+    {
+      id: "craque-penalti-gol",
+      setor: "craques",
+      emoji: "🎯",
+      nome: "Cobrança fria",
+      pergunta: "Sai pênalti convertido?",
+      simLabel: "CONVERTE",
+      naoLabel: "SEM PÊNALTI",
+      camada: "media",
+      resolve: { metric: "penGoals", cmp: "atLeast", line: 1 },
+    },
+    {
+      id: "craque-penalti-perdido",
+      setor: "craques",
+      emoji: "🥶",
+      nome: "Gelou na cobrança",
+      pergunta: "Alguém perde um pênalti?",
+      simLabel: "PERDE",
+      naoLabel: "NÃO PERDE",
+      camada: "dificil",
+      resolve: { metric: "penMissed", cmp: "atLeast", line: 1 },
+    },
+    {
+      id: "craque-2amarelos",
+      setor: "craques",
+      emoji: "🟨",
+      nome: "Novela do cartão",
+      pergunta: "Algum jogador leva 2 amarelos?",
+      simLabel: "LEVA 2",
+      naoLabel: "SE SEGURA",
+      camada: "media",
+      resolve: { metric: "maxPlayerYellows", cmp: "atLeast", line: 2 },
     },
 
     // ================= 🤡 ZOEIRA · aposta bônus (+3, não pune) =================

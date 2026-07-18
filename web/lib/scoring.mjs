@@ -43,6 +43,10 @@
  * @property {number} [redAway]
  * @property {number} [cornersHome]
  * @property {number} [cornersAway]
+ * @property {number} [topScorerGoals]    maior nº de gols de UM jogador (PlayerStats)
+ * @property {number} [penGoalsTotal]     pênaltis convertidos no jogo (soma)
+ * @property {number} [penAttemptsTotal]  pênaltis cobrados no jogo (soma)
+ * @property {number} [maxPlayerYellows]  maior nº de amarelos de UM jogador
  */
 
 /**
@@ -208,6 +212,11 @@ export const MARKET_METRICS = {
   yellowsTotal: (m) => (m.yellowHome ?? 0) + (m.yellowAway ?? 0),
   bothScore: (m) => (m.goalsHome > 0 && m.goalsAway > 0 ? 1 : 0),
   goalDiff: (m) => Math.abs(m.goalsHome - m.goalsAway),
+  // Craques (via PlayerStats agregado — sem nome, só o dado real por jogador).
+  topScorerGoals: (m) => m.topScorerGoals ?? 0,
+  penGoals: (m) => m.penGoalsTotal ?? 0,
+  penMissed: (m) => (m.penAttemptsTotal ?? 0) - (m.penGoalsTotal ?? 0),
+  maxPlayerYellows: (m) => m.maxPlayerYellows ?? 0,
 };
 
 /**

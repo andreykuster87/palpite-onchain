@@ -66,6 +66,9 @@ function collectStats(node, out) {
  * @returns {import('./scoring').MatchStats | null}
  */
 export function snapshotToMatchStats(payload) {
+  // Guarda o payload cru p/ agregar PlayerStats de TODOS os updates (o dado por
+  // jogador pode não estar no mesmo update de maior Seq que carrega `Stats`).
+  const rawPayload = payload;
   // O snapshot real é um array de updates com `Seq` crescente; o estado final
   // da partida é o update de maior Seq que carrega `Stats`.
   if (Array.isArray(payload)) {
@@ -89,5 +92,51 @@ export function snapshotToMatchStats(payload) {
     const v = found.get(Number(key));
     if (v != null) stats[field] = v;
   }
+
+  // Craques: agrega o PlayerStats (por playerId, sem nome no feed) em escalares.
+  const agg = aggregatePlayerStats(rawPayload);
+  if (agg) Object.assign(stats, agg);
+
   return stats;
+}
+
+/**
+ * Agrega o PlayerStats do feed em escalares para os mercados de craque.
+ * Cada update traz PlayerStats CUMULATIVO (forma { Participant1: { "<playerId>":
+ * {goals,yellowCards,redCards,penaltyGoals,penaltyAttempts} }, Participant2: {} });
+ * como acumula, o máximo de cada escalar entre updates = o valor final.
+ * @param {any} rawPayload array de updates (ou objeto único)
+ * @returns {{topScorerGoals:number, penGoalsTotal:number, penAttemptsTotal:number, maxPlayerYellows:number} | null}
+ */
+function aggregatePlayerStats(rawPayload) {
+  const updates = Array.isArray(rawPayload) ? rawPayload : [rawPayload];
+  let topScorerGoals = 0;
+  let penGoalsTotal = 0;
+  let penAttemptsTotal = 0;
+  let maxPlayerYellows = 0;
+  let sawAny = false;
+  for (const u of updates) {
+    const ps = u && u.PlayerStats;
+    if (!ps || typeof ps !== 'object') continue;
+    let penGoals = 0;
+    let penAttempts = 0;
+    for (const side of ['Participant1', 'Participant2']) {
+      const players = ps[side];
+      if (!players || typeof players !== 'object') continue;
+      for (const p of Object.values(players)) {
+        if (!p || typeof p !== 'object') continue;
+        sawAny = true;
+        const g = Number(/** @type {any} */ (p).goals) || 0;
+        const y = Number(/** @type {any} */ (p).yellowCards) || 0;
+        if (g > topScorerGoals) topScorerGoals = g;
+        if (y > maxPlayerYellows) maxPlayerYellows = y;
+        penGoals += Number(/** @type {any} */ (p).penaltyGoals) || 0;
+        penAttempts += Number(/** @type {any} */ (p).penaltyAttempts) || 0;
+      }
+    }
+    if (penGoals > penGoalsTotal) penGoalsTotal = penGoals;
+    if (penAttempts > penAttemptsTotal) penAttemptsTotal = penAttempts;
+  }
+  if (!sawAny) return null;
+  return { topScorerGoals, penGoalsTotal, penAttemptsTotal, maxPlayerYellows };
 }

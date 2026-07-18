@@ -20,6 +20,11 @@ export interface MatchStats {
   redAway?: number;
   cornersHome?: number;
   cornersAway?: number;
+  /** Craques (PlayerStats agregado). */
+  topScorerGoals?: number;
+  penGoalsTotal?: number;
+  penAttemptsTotal?: number;
+  maxPlayerYellows?: number;
 }
 
 export interface Cartela {
