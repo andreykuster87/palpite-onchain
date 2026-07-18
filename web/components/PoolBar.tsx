@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { type Pool, BUY_IN_OPTIONS, moneyLabel } from "@/lib/pools";
 import type { Identity } from "@/lib/identity";
+import { Ranking, type RankRow } from "@/components/Ranking";
 
 interface PoolBarProps {
   pools: Pool[];
@@ -10,6 +11,10 @@ interface PoolBarProps {
   identity: Identity;
   /** Participantes simulados do bolão ativo (roster estável por código). */
   members: string[];
+  /** Ranking do bolão ativo (mesmas linhas do sidebar) — usado no painel. */
+  standings: RankRow[];
+  /** Ranking simulado (antes do apito)? Mostra o selo "ao vivo" no painel. */
+  live: boolean;
   copiedPoolId: string | null;
   onSelect: (poolId: string) => void;
   onCreate: (name: string, buyIn: number) => void;
@@ -19,6 +24,19 @@ interface PoolBarProps {
   onCopyInvite: (poolId: string) => void;
 }
 
+/** Prêmio total (buy-in × participantes) e divisão 🥇50/🥈30/🥉20 (simulado). */
+function prizeBreakdown(buyIn: number, participants: number) {
+  const pot = buyIn * participants;
+  return {
+    pot,
+    first: Math.floor(pot * 0.5),
+    second: Math.floor(pot * 0.3),
+    third: Math.floor(pot * 0.2),
+  };
+}
+
+const brl = (n: number) => `R$ ${n.toLocaleString("pt-BR")}`;
+
 type Panel = "none" | "menu" | "create" | "join" | "nick" | "members";
 
 export function PoolBar({
@@ -26,6 +44,8 @@ export function PoolBar({
   activePoolId,
   identity,
   members,
+  standings,
+  live,
   copiedPoolId,
   onSelect,
   onCreate,
@@ -39,11 +59,31 @@ export function PoolBar({
   const [buyInInput, setBuyInInput] = useState<number>(0);
   const [codeInput, setCodeInput] = useState("");
   const [nickInput, setNickInput] = useState(identity.nickname);
+  // Painel do bolão (nome clicado): premiação + ranking + participantes.
+  const [showPanel, setShowPanel] = useState(false);
 
   const active = pools.find((p) => p.id === activePoolId) ?? pools[0];
   const hasNick = identity.nickname.trim().length > 0;
 
   const toggle = (p: Panel) => setPanel((cur) => (cur === p ? "none" : p));
+
+  // Painel do bolão: fecha com Esc + trava o scroll do fundo.
+  useEffect(() => {
+    if (!showPanel) return;
+    const onKey = (ev: KeyboardEvent) => {
+      if (ev.key === "Escape") setShowPanel(false);
+    };
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [showPanel]);
+
+  const participants = members.length + 1; // simulados + você
+  const prize = prizeBreakdown(active.buyIn, participants);
 
   function submitCreate() {
     const nm = nameInput.trim();
@@ -80,22 +120,31 @@ export function PoolBar({
           bolão
         </span>
 
-        {/* Seletor do bolão ativo */}
-        <button
-          onClick={() => toggle("menu")}
-          className="flex items-center gap-2 border border-chalk/15 bg-night-800 px-3 py-1.5 text-left transition hover:border-chalk/35"
-        >
-          <span className="text-sm">{active.isPlatform ? "🌎" : "🎟️"}</span>
-          <span className="font-display text-sm uppercase tracking-wider text-chalk">
-            {active.name}
-          </span>
-          {!active.isPlatform && (
-            <span className="font-mono text-[10px] tracking-widest text-gold-400">
-              #{active.code}
+        {/* Bolão ativo: nome abre o painel; ▾ abre o menu de troca */}
+        <div className="flex items-stretch border border-chalk/15 bg-night-800">
+          <button
+            onClick={() => setShowPanel(true)}
+            title="Abrir painel do bolão"
+            className="flex items-center gap-2 px-3 py-1.5 text-left transition hover:bg-night-700"
+          >
+            <span className="text-sm">{active.isPlatform ? "🌎" : "🎟️"}</span>
+            <span className="font-display text-sm uppercase tracking-wider text-chalk">
+              {active.name}
             </span>
-          )}
-          <span className="text-[10px] text-chalk/40">▾</span>
-        </button>
+            {!active.isPlatform && (
+              <span className="font-mono text-[10px] tracking-widest text-gold-400">
+                #{active.code}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => toggle("menu")}
+            title="Trocar de bolão"
+            className="border-l border-chalk/15 px-2 text-[10px] text-chalk/50 transition hover:bg-night-700 hover:text-chalk"
+          >
+            ▾
+          </button>
+        </div>
 
         <div className="flex-1" />
 
@@ -405,6 +454,154 @@ export function PoolBar({
             </button>
           </div>
         </PanelForm>
+      )}
+
+      {/* ---------- Painel do bolão (nome clicado) ---------- */}
+      {showPanel && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-night-950/85 p-4 backdrop-blur-sm"
+          onClick={() => setShowPanel(false)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            onClick={(ev) => ev.stopPropagation()}
+            className="relative flex max-h-[88vh] w-full max-w-lg flex-col border-2 border-gold-400 bg-night-900 shadow-[8px_8px_0_rgba(0,0,0,0.6)]"
+          >
+            {/* Fechar */}
+            <button
+              onClick={() => setShowPanel(false)}
+              aria-label="Fechar"
+              className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center border border-night-950/30 bg-night-950/20 font-mono text-sm text-night-950 transition hover:bg-night-950/40"
+            >
+              ✕
+            </button>
+
+            {/* Cabeçalho */}
+            <div className="bg-gold-400 px-6 pb-4 pt-5 text-night-950">
+              <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-night-950/70">
+                <span>{active.isPlatform ? "🌎 bolão público" : "🎟️ bolão"}</span>
+                {!active.isPlatform && <span>· #{active.code}</span>}
+              </div>
+              <div className="mt-1 font-display text-3xl uppercase leading-none tracking-wide">
+                {active.name}
+              </div>
+              <div className="mt-1.5 font-mono text-[11px] uppercase tracking-widest text-night-950/60">
+                inscrição {moneyLabel(active.buyIn)} · {participants} participantes
+              </div>
+            </div>
+
+            {/* Picote */}
+            <div className="relative flex items-center">
+              <span className="-ml-2.5 h-5 w-5 rounded-full bg-night-950" />
+              <span className="flex-1 border-t-2 border-dashed border-chalk/20" />
+              <span className="-mr-2.5 h-5 w-5 rounded-full bg-night-950" />
+            </div>
+
+            {/* Corpo rolável */}
+            <div className="flex-1 space-y-5 overflow-y-auto px-6 py-4">
+              {/* Premiação */}
+              <div>
+                <div className="mb-2 font-display text-sm uppercase tracking-[0.16em] text-chalk">
+                  🏆 Premiação
+                </div>
+                {active.buyIn > 0 ? (
+                  <div className="border border-gold-400/30 bg-gold-400/[0.05] p-3.5">
+                    <div className="flex items-end justify-between">
+                      <span className="font-mono text-[10px] uppercase tracking-widest text-chalk-dim">
+                        prêmio total
+                      </span>
+                      <span className="font-display text-3xl leading-none tabular-nums text-gold-400 [text-shadow:0_0_22px_rgba(255,196,0,0.4)]">
+                        {brl(prize.pot)}
+                      </span>
+                    </div>
+                    <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                      {[
+                        { m: "🥇", v: prize.first, l: "1º" },
+                        { m: "🥈", v: prize.second, l: "2º" },
+                        { m: "🥉", v: prize.third, l: "3º" },
+                      ].map((p) => (
+                        <div key={p.l} className="border border-chalk/12 py-2">
+                          <div className="text-lg leading-none">{p.m}</div>
+                          <div className="mt-1 font-mono text-sm font-bold tabular-nums text-chalk">
+                            {brl(p.v)}
+                          </div>
+                          <div className="font-mono text-[9px] uppercase tracking-widest text-chalk/40">
+                            {p.l} lugar
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="mt-2.5 font-mono text-[9px] leading-relaxed text-chalk/30">
+                      {brl(active.buyIn)} × {participants} participantes. Valores
+                      simulados — sem pagamento real por enquanto.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="border border-dashed border-grass-400/40 bg-grass-400/[0.04] p-3.5 font-mono text-[11px] leading-relaxed text-grass-400">
+                    Bolão grátis — vale pela glória e pela zoeira. 🏆 Sem premiação
+                    em dinheiro.
+                  </div>
+                )}
+              </div>
+
+              {/* Ranking */}
+              <div>
+                <Ranking rows={standings} title="Ranking" live={live} />
+              </div>
+
+              {/* Participantes */}
+              <div>
+                <div className="mb-2 font-display text-sm uppercase tracking-[0.16em] text-chalk">
+                  👥 Participantes · {participants}
+                </div>
+                <ul className="flex flex-wrap gap-1.5">
+                  <li className="flex items-center gap-1.5 border border-gold-400/60 bg-gold-400/[0.08] px-2.5 py-1">
+                    <span className="text-xs">🧑</span>
+                    <span className="font-mono text-[11px] text-chalk">
+                      {hasNick ? identity.nickname : "você"}
+                    </span>
+                    <span className="font-mono text-[9px] uppercase tracking-widest text-gold-400">
+                      você
+                    </span>
+                  </li>
+                  {members.map((name) => (
+                    <li
+                      key={name}
+                      className="flex items-center gap-1.5 border border-chalk/12 px-2.5 py-1"
+                    >
+                      <span className="text-xs">🎭</span>
+                      <span className="font-mono text-[11px] text-chalk-dim">
+                        {name}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-2 font-mono text-[9px] leading-relaxed text-chalk/30">
+                  Participantes simulados (local). Amigos reais entram com o backend.
+                </p>
+              </div>
+            </div>
+
+            {/* Rodapé */}
+            <div className="flex gap-2 border-t-2 border-dashed border-chalk/15 bg-night-900 px-6 py-4">
+              {!active.isPlatform && (
+                <button
+                  onClick={() => onCopyInvite(active.id)}
+                  className="flex-1 border border-gold-400 bg-gold-400 py-2.5 font-display text-sm uppercase tracking-[0.16em] text-night-950 transition hover:bg-gold-300"
+                >
+                  {copiedPoolId === active.id ? "✓ link copiado" : "🔗 Convidar"}
+                </button>
+              )}
+              <button
+                onClick={() => setShowPanel(false)}
+                className="border border-chalk/20 px-4 py-2.5 font-mono text-[11px] uppercase tracking-widest text-chalk-dim transition hover:border-chalk/45 hover:text-chalk"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

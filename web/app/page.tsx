@@ -428,6 +428,8 @@ export default function Home() {
         activePoolId={activePoolId}
         identity={identity}
         members={activeMembers}
+        standings={ranking}
+        live={rankingSimulated}
         copiedPoolId={copiedPoolId}
         onSelect={setActivePoolId}
         onCreate={handleCreatePool}
