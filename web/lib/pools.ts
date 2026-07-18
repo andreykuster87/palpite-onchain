@@ -41,9 +41,24 @@ export const PLATFORM_POOL: Pool = {
   name: "Bolão da Plataforma",
   code: "GERAL",
   isPlatform: true,
-  buyIn: 0,
+  buyIn: 50,
   createdAt: 0,
 };
+
+/** Bolão "Firma FC" — semeado (existe pra todo mundo, não é removível). */
+export const FIRMA_FC_POOL: Pool = {
+  id: "firma-fc",
+  name: "Firma FC",
+  code: "FRMAFC",
+  isPlatform: false,
+  buyIn: 100,
+  createdAt: 0,
+};
+
+/** Bolões semeados (sempre presentes; não persistidos, não removíveis). */
+export const SEEDED_POOLS: Pool[] = [PLATFORM_POOL, FIRMA_FC_POOL];
+const SEEDED_IDS = new Set(SEEDED_POOLS.map((p) => p.id));
+const SEEDED_CODES = new Set(SEEDED_POOLS.map((p) => p.code));
 
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // sem 0/O/1/I
 
@@ -105,10 +120,10 @@ function read(): Pool[] {
 
 function write(pools: Pool[]): void {
   try {
-    // Não persistimos o bolão da plataforma (é constante em código).
+    // Não persistimos os bolões semeados (são constantes em código).
     localStorage.setItem(
       KEY,
-      JSON.stringify(pools.filter((p) => !p.isPlatform))
+      JSON.stringify(pools.filter((p) => !SEEDED_IDS.has(p.id)))
     );
   } catch {
     /* ignora */
@@ -116,12 +131,14 @@ function write(pools: Pool[]): void {
 }
 
 /**
- * Lista os bolões da pessoa: a Plataforma sempre em primeiro, depois os
- * privados (mais novo primeiro).
+ * Lista os bolões da pessoa: os semeados (Plataforma, Firma FC) sempre primeiro,
+ * depois os privados criados/entrados (mais novo primeiro).
  */
 export function listPools(): Pool[] {
-  const mine = read().sort((a, b) => b.createdAt - a.createdAt);
-  return [PLATFORM_POOL, ...mine];
+  const mine = read()
+    .filter((p) => !SEEDED_IDS.has(p.id) && !SEEDED_CODES.has(p.code))
+    .sort((a, b) => b.createdAt - a.createdAt);
+  return [...SEEDED_POOLS, ...mine];
 }
 
 export function getPool(id: string): Pool | undefined {
@@ -133,7 +150,7 @@ export function createPool(name: string, buyIn: number, now: number): Pool {
   const pools = read();
   let code = randomCode();
   const taken = new Set(pools.map((p) => p.code));
-  taken.add(PLATFORM_POOL.code);
+  for (const c of SEEDED_CODES) taken.add(c);
   while (taken.has(code)) code = randomCode();
 
   const pool: Pool = {
@@ -168,7 +185,9 @@ export function joinPool(pool: Pool, now: number): Pool {
  */
 export function joinByCode(rawCode: string, now: number): Pool | null {
   const code = normalizeCode(rawCode);
-  if (!code || code === PLATFORM_POOL.code) return PLATFORM_POOL;
+  if (!code) return PLATFORM_POOL;
+  const seeded = SEEDED_POOLS.find((p) => p.code === code);
+  if (seeded) return seeded;
   const existing = read().find((p) => p.code === code);
   if (existing) return existing;
   return joinPool(
@@ -177,9 +196,9 @@ export function joinByCode(rawCode: string, now: number): Pool | null {
   );
 }
 
-/** Sai de um bolão privado (a plataforma não pode ser removida). */
+/** Sai de um bolão privado (os semeados não podem ser removidos). */
 export function leavePool(id: string): void {
-  if (id === PLATFORM_POOL.id) return;
+  if (SEEDED_IDS.has(id)) return;
   write(read().filter((p) => p.id !== id));
 }
 

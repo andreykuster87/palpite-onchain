@@ -77,6 +77,29 @@ export function poolMembers(seed: string, count?: number): string[] {
   return namesFrom(offset, n);
 }
 
+export interface Standing {
+  name: string;
+  points: number;
+}
+
+/**
+ * Ranking SIMULADO do bolão — sempre visível, pra dar vida (os nomes da galera
+ * aparecendo mesmo antes do apito). Pontos pseudo-aleatórios estáveis por
+ * `seed` (código do bolão), do maior pro menor. Puramente decorativo até o
+ * ranking real (por inscrição + oráculo) entrar com o backend.
+ */
+export function poolStandings(seed: string, count?: number): Standing[] {
+  const names = poolMembers(seed, count);
+  const rand = mulberry32(seedFromString(`${seed}:standings`));
+  return names
+    .map((name) => ({
+      name,
+      // 5..58 pontos, com um pouco de cauda alta para haver um "líder".
+      points: 5 + Math.floor(rand() * 48) + Math.floor(rand() * 6),
+    }))
+    .sort((a, b) => b.points - a.points);
+}
+
 // PRNG determinístico (mulberry32) — mantém os adversários estáveis entre
 // reloads para uma mesma fixture.
 function mulberry32(seed: number) {

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { scoreTicket, ticketErrors, rankEntries } from "@/lib/scoring.mjs";
 import type { Ticket, MatchStats } from "@/lib/scoring";
-import { ticketOpponentsFor, poolMembers } from "@/lib/mock";
+import { ticketOpponentsFor, poolMembers, poolStandings } from "@/lib/mock";
 import { COPA_FIXTURES, type CopaFixture } from "@/lib/copa";
 import { catalogFor, catalogMap } from "@/lib/catalog";
 import { commitHash } from "@/lib/hash";
@@ -315,47 +315,75 @@ export default function Home() {
     [savedEntry, finished, marketsMap]
   );
 
+  // Está mostrando o ranking SIMULADO (antes do apito)? Depois do apito, mostra
+  // a pontuação real de você + adversários contra o dado do oráculo.
+  const rankingSimulated = !(savedEntry && finished);
+
   const ranking = useMemo<RankRow[]>(() => {
-    if (!savedEntry || !finished) return [];
-    const opponents = ticketOpponentsFor(fixture, markets, finished.stats, {
-      seed: activePool.code,
-      count: activePool.isPlatform ? 11 : undefined,
-    });
-    const all = [
-      {
-        id: "you",
-        name: identity.nickname || "Você",
-        isYou: true,
-        ticket: savedEntry.ticket,
-        submittedAt: savedEntry.submittedAt,
-      },
-      ...opponents.map((o) => ({
-        id: o.id,
-        name: o.name,
-        isYou: false,
-        ticket: o.ticket,
-        submittedAt: o.submittedAt,
-      })),
-    ];
-    const scored = all.map((e) => {
-      const r = scoreTicket(e.ticket, finished.stats, marketsMap);
-      return {
-        id: e.id,
-        name: e.name,
-        isYou: e.isYou,
+    const count = activePool.isPlatform ? 11 : undefined;
+    const youName = identity.nickname || "Você";
+
+    // Pós-apito: pontuação real.
+    if (savedEntry && finished) {
+      const opponents = ticketOpponentsFor(fixture, markets, finished.stats, {
+        seed: activePool.code,
+        count,
+      });
+      const all = [
+        {
+          id: "you",
+          name: youName,
+          isYou: true,
+          ticket: savedEntry.ticket,
+          submittedAt: savedEntry.submittedAt,
+        },
+        ...opponents.map((o) => ({
+          id: o.id,
+          name: o.name,
+          isYou: false,
+          ticket: o.ticket,
+          submittedAt: o.submittedAt,
+        })),
+      ];
+      const scored = all.map((e) => {
+        const r = scoreTicket(e.ticket, finished.stats, marketsMap);
+        return {
+          id: e.id,
+          name: e.name,
+          isYou: e.isYou,
+          points: r.points,
+          valid: r.valid,
+          errors: ticketErrors(r),
+          submittedAt: e.submittedAt,
+        };
+      });
+      return rankEntries(scored).map((r) => ({
+        id: r.id,
+        name: r.name,
         points: r.points,
         valid: r.valid,
-        errors: ticketErrors(r),
-        submittedAt: e.submittedAt,
-      };
-    });
-    return rankEntries(scored).map((r) => ({
-      id: r.id,
-      name: r.name,
-      points: r.points,
-      valid: r.valid,
-      isYou: r.isYou,
+        isYou: r.isYou,
+      }));
+    }
+
+    // Sempre-visível: ranking SIMULADO do bolão (nomes da galera aparecendo) +
+    // você pendente até montar/apitar.
+    const rows: RankRow[] = poolStandings(activePool.code, count).map((s, i) => ({
+      id: `sim-${i}`,
+      name: s.name,
+      points: s.points,
+      valid: true,
+      isYou: false,
     }));
+    rows.push({
+      id: "you",
+      name: youName,
+      points: 0,
+      valid: true,
+      isYou: true,
+      pending: true,
+    });
+    return rows;
   }, [savedEntry, finished, fixture, markets, marketsMap, activePool, identity.nickname]);
 
   const f = finished?.stats;
@@ -633,9 +661,11 @@ export default function Home() {
               </p>
             </div>
           )}
-          {ranking.length > 0 && (
-            <Ranking rows={ranking} title={`Ranking · ${activePool.name}`} />
-          )}
+          <Ranking
+            rows={ranking}
+            title={`Ranking · ${activePool.name}`}
+            live={rankingSimulated}
+          />
         </aside>
       </div>
 

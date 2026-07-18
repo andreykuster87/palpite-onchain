@@ -6,26 +6,44 @@ export interface RankRow {
   points: number;
   valid: boolean;
   isYou: boolean;
+  /** Ainda sem pontuação (ex.: você antes de montar/apitar). Mostra "—". */
+  pending?: boolean;
 }
 
-export function Ranking({ rows, title = "Ranking da liga" }: { rows: RankRow[]; title?: string }) {
+export function Ranking({
+  rows,
+  title = "Ranking da liga",
+  live = false,
+}: {
+  rows: RankRow[];
+  title?: string;
+  /** Mostra o selo "ao vivo" piscando (ranking simulado sempre visível). */
+  live?: boolean;
+}) {
   return (
     <div className="reveal border border-chalk/12 bg-night-900 p-5" style={{ animationDelay: "0.08s" }}>
       <div className="mb-3 flex items-baseline justify-between gap-2">
         <span className="font-display text-sm uppercase tracking-[0.2em] text-chalk-dim">
           {title}
         </span>
-        <span className="font-mono text-[10px] uppercase tracking-widest text-chalk/30">
-          {rows.length} no páreo
-        </span>
+        {live ? (
+          <span className="blink font-mono text-[10px] uppercase tracking-widest text-grass-400">
+            ● ao vivo
+          </span>
+        ) : (
+          <span className="font-mono text-[10px] uppercase tracking-widest text-chalk/30">
+            {rows.length} no páreo
+          </span>
+        )}
       </div>
       <ol>
         {rows.map((r, i) => (
           <li
             key={r.id}
-            className={`flex items-center gap-3 border-b border-chalk/8 py-2 last:border-0 ${
+            className={`reveal flex items-center gap-3 border-b border-chalk/8 py-2 last:border-0 ${
               r.isYou ? "border-l-2 border-l-gold-400 bg-gold-400/8 pl-3 -ml-px" : ""
             }`}
+            style={{ animationDelay: `${0.1 + i * 0.05}s` }}
           >
             <span
               className={`w-7 text-right font-mono text-sm tabular-nums ${
@@ -49,13 +67,19 @@ export function Ranking({ rows, title = "Ranking da liga" }: { rows: RankRow[]; 
                 </span>
               )}
             </span>
-            <span
-              className={`font-mono text-sm font-bold tabular-nums ${
-                r.valid ? "text-chalk" : "text-chalk/30"
-              }`}
-            >
-              {r.points}
-            </span>
+            {r.pending ? (
+              <span className="font-mono text-xs uppercase tracking-widest text-chalk/30">
+                —
+              </span>
+            ) : (
+              <span
+                className={`font-mono text-sm font-bold tabular-nums ${
+                  r.valid ? "text-chalk" : "text-chalk/30"
+                }`}
+              >
+                {r.points}
+              </span>
+            )}
           </li>
         ))}
       </ol>
