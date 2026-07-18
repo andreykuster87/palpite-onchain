@@ -311,7 +311,7 @@ export function Prateleira({
       : null;
 
   return (
-    <section className="reveal mt-14" style={{ animationDelay: "0.1s" }}>
+    <section data-guide="bilhetes" className="reveal mt-14" style={{ animationDelay: "0.1s" }}>
       {/* ---------- Cabeçalho da seção ---------- */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">

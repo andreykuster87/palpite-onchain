@@ -4,12 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 /**
- * Guia rápido "Como jogar" — 4 passos da aposta. Aparece na fase de montar o
- * bilhete e é dispensável (o page guarda o flag). Ajuda quem chega novo (demo).
+ * Guia "Como jogar" — passo a passo da aposta. Aparece na fase de montar e é
+ * dispensável (o page guarda o flag). Ajuda quem chega novo (demo).
  *
- * Interativo: passar o mouse (desktop) ou tocar (mobile) num passo rola até o
- * alvo daquela ação e mostra um ANEL + SETA apontando pro lugar certo. Os alvos
- * são marcados com `data-guide="jogo|resultado|palpites|selar"` no page/builder.
+ * Interativo por CLIQUE/TOQUE (funciona igual no desktop e no mobile): tocar num
+ * passo rola até o alvo daquela ação e mostra um ANEL + SETA apontando pro lugar
+ * certo. (Hover não é usado: rolar a página movia o próprio guia de baixo do
+ * cursor e disparava uma tempestade de mouseenter/leave — travava feio.) Os
+ * alvos são marcados com `data-guide="jogo|resultado|palpites|selar|bilhetes"`.
  */
 const STEPS = [
   {
@@ -37,18 +39,24 @@ const STEPS = [
     n: "4",
     key: "selar",
     icon: "🔒",
-    title: "Sele e acompanhe",
-    desc: "A bola rola e cada palpite confirma ao vivo até o resultado final.",
+    title: "Sele o palpite",
+    desc: "Selado, a bola rola e cada palpite confirma ao vivo até o resultado.",
+  },
+  {
+    n: "5",
+    key: "bilhetes",
+    icon: "🏆",
+    title: "Concorra nos bolões",
+    desc: "Em “Meus bilhetes”, abra o bilhete e escolha o(s) bolão(ões). O mesmo bilhete pode disputar vários!",
   },
 ];
 
 export function HowToPlay({ onDismiss }: { onDismiss: () => void }) {
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [rect, setRect] = useState<DOMRect | null>(null);
-  const rafRef = useRef<number | null>(null);
   const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Enquanto um passo está ativo, segue o alvo (mesmo durante o scroll suave).
+  // Ao ativar um passo: rola o alvo pra tela e acompanha o scroll (sem rAF).
   useEffect(() => {
     if (!activeKey) {
       setRect(null);
@@ -59,18 +67,21 @@ export function HowToPlay({ onDismiss }: { onDismiss: () => void }) {
       setRect(null);
       return;
     }
-    // Coloca o TOPO do alvo ~96px abaixo do topo da tela — deixa espaço pra
-    // seta acima (alvos altos ficariam com o topo fora da tela no 'center').
-    // Scroll instantâneo: o suave era interrompido pelos re-renders do rAF.
-    const target = window.scrollY + el.getBoundingClientRect().top - 96;
-    window.scrollTo({ top: Math.max(0, target) });
-    const tick = () => {
-      setRect(el.getBoundingClientRect());
-      rafRef.current = requestAnimationFrame(tick);
-    };
-    tick();
+    // Coloca o TOPO do alvo ~96px abaixo do topo (espaço pra seta). Instantâneo:
+    // o scroll suave era interrompido e ficava a meio caminho.
+    window.scrollTo({
+      top: Math.max(0, window.scrollY + el.getBoundingClientRect().top - 96),
+    });
+    const update = () => setRect(el.getBoundingClientRect());
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    // Some sozinho depois de um tempo (bom pro toque no mobile).
+    if (clearTimer.current) clearTimeout(clearTimer.current);
+    clearTimer.current = setTimeout(() => setActiveKey(null), 4500);
     return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
     };
   }, [activeKey]);
 
@@ -81,18 +92,14 @@ export function HowToPlay({ onDismiss }: { onDismiss: () => void }) {
     []
   );
 
-  // hover (desktop) mostra enquanto está em cima; clique/tap (mobile) trava por ~3s.
-  const show = (key: string, lock: boolean) => {
-    if (clearTimer.current) clearTimeout(clearTimer.current);
-    setActiveKey(key);
-    if (lock) clearTimer.current = setTimeout(() => setActiveKey(null), 3000);
-  };
+  const toggle = (key: string) =>
+    setActiveKey((cur) => (cur === key ? null : key));
 
   return (
     <div className="reveal relative border border-gold-400/30 bg-gold-400/[0.04] p-4">
       <div className="mb-3 flex items-center justify-between">
         <span className="font-display text-sm uppercase tracking-[0.2em] text-gold-400">
-          Como jogar · em 4 passos
+          Como jogar · passo a passo
         </span>
         <button
           onClick={onDismiss}
@@ -102,14 +109,12 @@ export function HowToPlay({ onDismiss }: { onDismiss: () => void }) {
           entendi ✕
         </button>
       </div>
-      <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {STEPS.map((s) => (
           <li key={s.n}>
             <button
               type="button"
-              onMouseEnter={() => show(s.key, false)}
-              onMouseLeave={() => setActiveKey((k) => (k === s.key ? null : k))}
-              onClick={() => show(s.key, true)}
+              onClick={() => toggle(s.key)}
               className={`flex w-full gap-2.5 border p-3 text-left transition ${
                 activeKey === s.key
                   ? "border-gold-400 bg-gold-400/10"
@@ -135,10 +140,10 @@ export function HowToPlay({ onDismiss }: { onDismiss: () => void }) {
         ))}
       </ol>
       <p className="mt-2.5 font-mono text-[10px] uppercase tracking-widest text-chalk/30">
-        👆 passe o mouse ou toque num passo pra ver onde fica
+        👆 clique ou toque num passo pra ver onde fica
       </p>
 
-      {/* Overlay: anel + seta apontando pro alvo (portal, segue o elemento). */}
+      {/* Overlay: anel + seta apontando pro alvo (portal, acompanha o scroll). */}
       {activeKey &&
         rect &&
         createPortal(
