@@ -118,6 +118,15 @@ export default function Home() {
     return f.length ? f : fixtures;
   }, [fixtures, activePool]);
 
+  // Rótulos "FRA×MAR" por fixtureId — pra mostrar quando um bolão restringe jogos.
+  const fixtureLabels = useMemo(
+    () =>
+      Object.fromEntries(
+        fixtures.map((f) => [f.id, `${f.home.short}×${f.away.short}`])
+      ) as Record<string, string>,
+    [fixtures]
+  );
+
   const fixture = fixtures.find((f) => f.id === fixtureId) ?? visibleFixtures[0] ?? fixtures[0];
   const savedEntry = saved[fixture.id];
   const finished = whistled[fixture.id];
@@ -865,6 +874,7 @@ export default function Home() {
           poolEntries={poolEntries}
           activeId={fixture.id}
           copiedId={copiedId}
+          fixtureLabels={fixtureLabels}
           onOpen={setFixtureId}
           onShare={shareById}
           onEnter={handleEnterPool}
@@ -875,6 +885,8 @@ export default function Home() {
       {enterFor && (
         <EnterPoolsModal
           pools={pools}
+          fixtureId={enterFor}
+          fixtureLabels={fixtureLabels}
           alreadyIn={poolIdsForFixture(poolEntries, enterFor)}
           preselect={[activePoolId]}
           onConfirm={confirmEnterPools}

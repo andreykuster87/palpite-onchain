@@ -55,6 +55,11 @@ const DEFAULT_RULES: PoolRules = {
   deadline: null,
 };
 
+/** O bolão aceita um bilhete deste jogo? (games vazio = todos). */
+export function poolAcceptsFixture(pool: Pool, fixtureId: string): boolean {
+  return !pool.games.length || pool.games.includes(fixtureId);
+}
+
 /** Rótulo do prazo pra apostar. */
 export function deadlineLabel(deadline: number | null): string {
   if (deadline == null) return "até o 1º jogo começar";

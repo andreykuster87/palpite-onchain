@@ -6,7 +6,7 @@ import type { Ticket, Camada } from "@/lib/scoring";
 import { LAYER_POINTS } from "@/lib/scoring.mjs";
 import type { CopaFixture } from "@/lib/copa";
 import { catalogFor, catalogMap, CAMADA_META } from "@/lib/catalog";
-import { type Pool, moneyLabel } from "@/lib/pools";
+import { type Pool, moneyLabel, poolAcceptsFixture } from "@/lib/pools";
 import { type PoolEntry, hasEntry } from "@/lib/entries";
 
 export interface ShelfEntry {
@@ -27,6 +27,8 @@ interface Props {
   activeId: string;
   /** fixtureId cujo link acabou de ser copiado (feedback no botão). */
   copiedId: string | null;
+  /** Rótulos "FRA×MAR" por fixtureId — mostra os jogos que um bolão aceita. */
+  fixtureLabels: Record<string, string>;
   onOpen: (fixtureId: string) => void;
   onShare: (fixtureId: string) => void;
   /** Inscreve o bilhete de `fixtureId` no bolão `poolId` (pagamento simulado). */
@@ -246,6 +248,7 @@ export function Prateleira({
   poolEntries,
   activeId,
   copiedId,
+  fixtureLabels,
   onOpen,
   onShare,
   onEnter,
@@ -301,9 +304,13 @@ export function Prateleira({
   const enteredFixtureIds = new Set(poolEntries.map((pe) => pe.fixtureId));
   const unentered = shelf.filter((e) => !enteredFixtureIds.has(e.fixtureId));
 
-  // Bolões em que o bilhete aberto ainda NÃO está inscrito.
+  // Bolões em que dá pra inscrever: não inscrito ainda E aceita este jogo.
   const availablePools = openEntry
-    ? pools.filter((p) => !hasEntry(poolEntries, p.id, openEntry.fixtureId))
+    ? pools.filter(
+        (p) =>
+          !hasEntry(poolEntries, p.id, openEntry.fixtureId) &&
+          poolAcceptsFixture(p, openEntry.fixtureId)
+      )
     : [];
   const selectedPool =
     selectedPoolId != null
@@ -459,79 +466,107 @@ export function Prateleira({
                 <div className="mb-2 font-display text-sm uppercase tracking-[0.16em] text-gold-400">
                   Concorrer com esse bilhete
                 </div>
-                {availablePools.length === 0 ? (
-                  <p className="font-mono text-[11px] leading-relaxed text-grass-400">
-                    ✓ Você já está concorrendo com esse bilhete em todos os seus
-                    bolões.
-                  </p>
-                ) : (
-                  <>
-                    <p className="mb-2.5 font-mono text-[10px] leading-relaxed text-chalk/40">
-                      Escolha em qual bolão inscrever:
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {pools.map((p) => {
-                        const entered = hasEntry(
-                          poolEntries,
-                          p.id,
-                          openEntry.fixtureId
-                        );
-                        if (entered) {
-                          return (
-                            <span
-                              key={p.id}
-                              className="flex items-center gap-1.5 border border-grass-400/50 bg-grass-400/[0.06] px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-wide text-grass-400"
-                            >
-                              ✓ {p.name}
-                            </span>
-                          );
-                        }
-                        const sel = selectedPoolId === p.id;
-                        return (
-                          <button
-                            key={p.id}
-                            onClick={() => setSelectedPoolId(p.id)}
-                            className={`flex items-center gap-1.5 border px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-wide transition ${
-                              sel
-                                ? "border-gold-400 bg-gold-400/10 text-gold-400"
-                                : "border-chalk/20 text-chalk-dim hover:border-chalk/45 hover:text-chalk"
-                            }`}
-                          >
-                            <span>{p.isPlatform ? "🌎" : "🎟️"}</span>
-                            {p.name}
-                            <span
-                              className={
-                                p.buyIn > 0 ? "text-gold-400/80" : "text-grass-400/80"
-                              }
-                            >
-                              {moneyLabel(p.buyIn)}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {selectedPool && (
+                <p className="mb-2.5 font-mono text-[10px] leading-relaxed text-chalk/40">
+                  Escolha em qual bolão inscrever:
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {pools.map((p) => {
+                    const entered = hasEntry(poolEntries, p.id, openEntry.fixtureId);
+                    const accepts = poolAcceptsFixture(p, openEntry.fixtureId);
+                    if (entered) {
+                      return (
+                        <span
+                          key={p.id}
+                          className="flex items-center gap-1.5 border border-grass-400/50 bg-grass-400/[0.06] px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-wide text-grass-400"
+                        >
+                          ✓ {p.name}
+                        </span>
+                      );
+                    }
+                    if (!accepts) {
+                      const games = p.games
+                        .map((id) => fixtureLabels[id] ?? id)
+                        .join(" · ");
+                      return (
+                        <span
+                          key={p.id}
+                          title={`Só aceita: ${games}`}
+                          className="flex items-center gap-1.5 border border-chalk/12 bg-night-950/30 px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-wide text-chalk/30"
+                        >
+                          <span className="text-danger">✗</span> {p.name}
+                        </span>
+                      );
+                    }
+                    const sel = selectedPoolId === p.id;
+                    return (
                       <button
-                        onClick={() => {
-                          onEnter(
-                            openEntry.fixtureId,
-                            selectedPool.id,
-                            openEntry.ticket
-                          );
-                          setSelectedPoolId(null);
-                        }}
-                        className="mt-3 w-full border border-gold-400 bg-gold-400 py-2.5 font-display text-sm uppercase tracking-[0.16em] text-night-950 shadow-[3px_3px_0_rgba(0,0,0,0.5)] transition hover:bg-gold-300 active:translate-y-0.5"
+                        key={p.id}
+                        onClick={() => setSelectedPoolId(p.id)}
+                        className={`flex items-center gap-1.5 border px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-wide transition ${
+                          sel
+                            ? "border-gold-400 bg-gold-400/10 text-gold-400"
+                            : "border-chalk/20 text-chalk-dim hover:border-chalk/45 hover:text-chalk"
+                        }`}
                       >
-                        {selectedPool.buyIn > 0
-                          ? `Pagar ${moneyLabel(selectedPool.buyIn)} e concorrer`
-                          : "Concorrer (grátis)"}
+                        <span>{p.isPlatform ? "🌎" : "🎟️"}</span>
+                        {p.name}
+                        <span
+                          className={
+                            p.buyIn > 0 ? "text-gold-400/80" : "text-grass-400/80"
+                          }
+                        >
+                          {moneyLabel(p.buyIn)}
+                        </span>
                       </button>
-                    )}
-                    <p className="mt-2 font-mono text-[9px] leading-relaxed text-chalk/30">
-                      Pagamento simulado — em breve. Nada é cobrado agora.
-                    </p>
-                  </>
+                    );
+                  })}
+                </div>
+
+                {/* Aviso de bolões incompatíveis (jogo diferente) */}
+                {pools.some(
+                  (p) =>
+                    !hasEntry(poolEntries, p.id, openEntry.fixtureId) &&
+                    !poolAcceptsFixture(p, openEntry.fixtureId)
+                ) && (
+                  <p className="mt-2 border border-danger/30 bg-danger/[0.06] px-2.5 py-1.5 font-mono text-[10px] leading-relaxed text-danger">
+                    ✗ Bolões marcados não aceitam este bilhete — eles são de outro(s)
+                    jogo(s). Este bilhete é de{" "}
+                    <span className="text-chalk">
+                      {openEntry.fixture.home.short}×{openEntry.fixture.away.short}
+                    </span>
+                    .
+                  </p>
                 )}
+
+                {/* Já concorrendo em todos os elegíveis */}
+                {availablePools.length === 0 &&
+                  !pools.some(
+                    (p) =>
+                      !hasEntry(poolEntries, p.id, openEntry.fixtureId) &&
+                      !poolAcceptsFixture(p, openEntry.fixtureId)
+                  ) && (
+                    <p className="mt-2 font-mono text-[11px] leading-relaxed text-grass-400">
+                      ✓ Você já está concorrendo com esse bilhete em todos os bolões
+                      elegíveis.
+                    </p>
+                  )}
+
+                {selectedPool && (
+                  <button
+                    onClick={() => {
+                      onEnter(openEntry.fixtureId, selectedPool.id, openEntry.ticket);
+                      setSelectedPoolId(null);
+                    }}
+                    className="mt-3 w-full border border-gold-400 bg-gold-400 py-2.5 font-display text-sm uppercase tracking-[0.16em] text-night-950 shadow-[3px_3px_0_rgba(0,0,0,0.5)] transition hover:bg-gold-300 active:translate-y-0.5"
+                  >
+                    {selectedPool.buyIn > 0
+                      ? `Pagar ${moneyLabel(selectedPool.buyIn)} e concorrer`
+                      : "Concorrer (grátis)"}
+                  </button>
+                )}
+                <p className="mt-2 font-mono text-[9px] leading-relaxed text-chalk/30">
+                  Pagamento simulado — em breve. Nada é cobrado agora.
+                </p>
               </div>
 
               {/* Trava */}

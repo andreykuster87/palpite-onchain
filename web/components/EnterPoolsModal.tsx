@@ -2,21 +2,28 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { type Pool, moneyLabel, brl } from "@/lib/pools";
+import { type Pool, moneyLabel, brl, poolAcceptsFixture } from "@/lib/pools";
 
 /**
  * Modal que aparece AO SELAR o palpite: escolha em qual(is) bolão(ões)
  * concorrer com esse bilhete. Seleção MÚLTIPLA — pode marcar vários; a cobrança
  * é ÚNICA pelo total somado dos buy-ins (pagamento simulado por enquanto).
+ * Bolões de outro(s) jogo(s) aparecem travados (não aceitam este bilhete).
  */
 export function EnterPoolsModal({
   pools,
+  fixtureId,
+  fixtureLabels,
   alreadyIn,
   preselect = [],
   onConfirm,
   onSkip,
 }: {
   pools: Pool[];
+  /** Jogo do bilhete sendo selado (pra checar compatibilidade). */
+  fixtureId: string;
+  /** Rótulos "FRA×MAR" por fixtureId. */
+  fixtureLabels: Record<string, string>;
   /** Bolões em que este bilhete já está inscrito (mostra "já inscrito"). */
   alreadyIn: string[];
   /** Bolões pré-marcados (ex.: o bolão ativo). */
@@ -25,7 +32,14 @@ export function EnterPoolsModal({
   onSkip: () => void;
 }) {
   const [sel, setSel] = useState<Set<string>>(
-    () => new Set(preselect.filter((id) => !alreadyIn.includes(id)))
+    () =>
+      new Set(
+        preselect.filter((id) => {
+          if (alreadyIn.includes(id)) return false;
+          const p = pools.find((x) => x.id === id);
+          return p ? poolAcceptsFixture(p, fixtureId) : false;
+        })
+      )
   );
 
   // Esc fecha (pular) + trava o scroll do fundo.
@@ -81,31 +95,39 @@ export function EnterPoolsModal({
         <div className="flex-1 space-y-2 overflow-y-auto px-5 py-4">
           {pools.map((p) => {
             const entered = alreadyIn.includes(p.id);
+            const accepts = poolAcceptsFixture(p, fixtureId);
+            const blocked = entered || !accepts;
             const checked = entered || sel.has(p.id);
+            const games = p.games.map((id) => fixtureLabels[id] ?? id).join(" · ");
             return (
               <button
                 key={p.id}
                 type="button"
-                disabled={entered}
+                disabled={blocked}
+                title={!accepts ? `Só aceita: ${games}` : undefined}
                 onClick={() => toggle(p.id)}
                 className={`flex w-full items-center gap-3 border px-3 py-2.5 text-left transition ${
                   entered
                     ? "cursor-default border-grass-400/40 bg-grass-400/[0.05]"
-                    : checked
-                      ? "border-gold-400 bg-gold-400/10"
-                      : "border-chalk/15 bg-night-950/40 hover:border-chalk/40"
+                    : !accepts
+                      ? "cursor-not-allowed border-chalk/10 bg-night-950/20 opacity-50"
+                      : checked
+                        ? "border-gold-400 bg-gold-400/10"
+                        : "border-chalk/15 bg-night-950/40 hover:border-chalk/40"
                 }`}
               >
                 <span
                   className={`flex h-5 w-5 shrink-0 items-center justify-center border font-mono text-[11px] ${
-                    checked
-                      ? entered
-                        ? "border-grass-400 text-grass-400"
-                        : "border-gold-400 bg-gold-400 text-night-950"
-                      : "border-chalk/30 text-transparent"
+                    !accepts && !entered
+                      ? "border-danger/50 text-danger"
+                      : checked
+                        ? entered
+                          ? "border-grass-400 text-grass-400"
+                          : "border-gold-400 bg-gold-400 text-night-950"
+                        : "border-chalk/30 text-transparent"
                   }`}
                 >
-                  ✓
+                  {!accepts && !entered ? "✗" : "✓"}
                 </span>
                 <span className="text-sm">{p.isPlatform ? "🌎" : "🎟️"}</span>
                 <span className="flex-1 truncate font-display text-sm uppercase tracking-wide text-chalk">
@@ -114,6 +136,10 @@ export function EnterPoolsModal({
                 {entered ? (
                   <span className="font-mono text-[10px] uppercase tracking-widest text-grass-400">
                     já inscrito
+                  </span>
+                ) : !accepts ? (
+                  <span className="font-mono text-[10px] uppercase tracking-widest text-danger">
+                    outro jogo
                   </span>
                 ) : (
                   <span
@@ -127,6 +153,12 @@ export function EnterPoolsModal({
               </button>
             );
           })}
+          {pools.some((p) => !alreadyIn.includes(p.id) && !poolAcceptsFixture(p, fixtureId)) && (
+            <p className="border border-danger/30 bg-danger/[0.06] px-3 py-1.5 font-mono text-[10px] leading-relaxed text-danger">
+              ✗ Bolões travados são de outro(s) jogo(s) — não aceitam este bilhete
+              ({fixtureLabels[fixtureId] ?? "este jogo"}).
+            </p>
+          )}
         </div>
 
         {/* Rodapé: total + pagamento único */}
