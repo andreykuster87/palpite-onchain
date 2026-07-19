@@ -110,7 +110,15 @@ export default function Home() {
     [activePool]
   );
 
-  const fixture = fixtures.find((f) => f.id === fixtureId) ?? fixtures[0];
+  // Jogos visíveis: se o bolão foi criado pra jogos específicos, só eles. Vazio
+  // (ou nenhum casa com as fixtures carregadas) = todos.
+  const visibleFixtures = useMemo(() => {
+    if (!activePool.games.length) return fixtures;
+    const f = fixtures.filter((fx) => activePool.games.includes(fx.id));
+    return f.length ? f : fixtures;
+  }, [fixtures, activePool]);
+
+  const fixture = fixtures.find((f) => f.id === fixtureId) ?? visibleFixtures[0] ?? fixtures[0];
   const savedEntry = saved[fixture.id];
   const finished = whistled[fixture.id];
   // Fase da partida desta fixture: relógio ao vivo → resultado final.
@@ -119,6 +127,14 @@ export default function Home() {
   const isFinal = !!finished && (lm === undefined || lm >= 90);
   // Estamos vendo um bilhete que veio de um amigo (para esta fixture)?
   const fromFriend = !!incoming && incoming.fixtureId === fixture.id;
+
+  // Trocou pra um bolão com jogos específicos? Se a fixture ativa não é um deles,
+  // pula pro 1º jogo do bolão.
+  useEffect(() => {
+    if (!visibleFixtures.some((f) => f.id === fixtureId) && visibleFixtures[0]) {
+      setFixtureId(visibleFixtures[0].id);
+    }
+  }, [visibleFixtures, fixtureId]);
 
   // Catálogo de mercados-meme desta fixture (nomes dos times + linhas tecidos).
   const markets = useMemo(() => catalogFor(fixture), [fixture]);
@@ -534,7 +550,7 @@ export default function Home() {
         className="reveal mb-8 flex gap-2.5 overflow-x-auto pb-1"
         style={{ animationDelay: "0.06s" }}
       >
-        {fixtures.map((fx) => {
+        {visibleFixtures.map((fx) => {
           const active = fx.id === fixture.id;
           const done = !!saved[fx.id];
           return (
