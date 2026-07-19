@@ -117,10 +117,10 @@ export const FIRMA_FC_POOL: Pool = {
   code: "FRMAFC",
   isPlatform: false,
   buyIn: 100,
-  games: [],
-  multiTicket: false,
+  games: ["wc-final-esp-arg"], // só ESP×ARG (a Final)
+  multiTicket: false, // 1 bilhete por pessoa
   maxTickets: 0,
-  scoring: "points",
+  scoring: "points", // disputa pelas variáveis (pontos)
   deadline: null,
   createdAt: 0,
 };
