@@ -373,7 +373,7 @@ export function PoolBar({
                 submitCreate();
               }
             }}
-            placeholder="Nome do bolão (ex.: Firma FC)"
+            placeholder="Nome do bolão (ex.: Firma do trabalho)"
             maxLength={40}
             className="w-full border border-chalk/20 bg-night-950 px-3 py-2 font-mono text-sm text-chalk outline-none placeholder:text-chalk/30 focus:border-gold-400/60"
           />

@@ -13,7 +13,7 @@ App em `4line-onchain.vercel.app` (aba anônima, pra começar limpo). Alvo ~4:30
 ## Estado de demo (deixar pronto antes de gravar)
 
 - Definir apelido (ex.: "Andrey").
-- Já existem os bolões semeados: 🌎 Bolão da Plataforma (R$50) e 🎟️ Firma FC (R$100).
+- Já existem os bolões semeados: 🌎 Grupo 4line (R$50) e 🎟️ SuperTeam Brasil (R$100).
 - Opcional: criar 1 bolão antes ("Superteam Brasil", grátis) pra variedade.
 - Ter 1 jogo ENCERRADO à mão (ex.: FRA×MAR 2–0) — o "Selar" puxa o dado real do
   oráculo e mostra o selo "● dado do oráculo".

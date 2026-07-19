@@ -98,7 +98,7 @@ const KEY = "palpite:pools:v1";
 /** Bolão público único da plataforma. Fixo (não é criado nem removível). */
 export const PLATFORM_POOL: Pool = {
   id: "platform",
-  name: "Bolão da Plataforma",
+  name: "Grupo 4line",
   code: "GERAL",
   isPlatform: true,
   buyIn: 50,
@@ -110,10 +110,10 @@ export const PLATFORM_POOL: Pool = {
   createdAt: 0,
 };
 
-/** Bolão "Firma FC" — semeado (existe pra todo mundo, não é removível). */
+/** Bolão "SuperTeam Brasil" — semeado (existe pra todo mundo, não é removível). */
 export const FIRMA_FC_POOL: Pool = {
   id: "firma-fc",
-  name: "Firma FC",
+  name: "SuperTeam Brasil",
   code: "FRMAFC",
   isPlatform: false,
   buyIn: 100,
