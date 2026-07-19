@@ -454,68 +454,9 @@ export function Prateleira({
 
             {/* Corpo rolável */}
             <div className="flex-1 overflow-y-auto px-6 py-4">
-              {/* Trava */}
-              <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-dashed border-chalk/15 pb-3">
-                <span className="border border-gold-400/50 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-widest text-gold-400">
-                  Trava
-                </span>
-                <span className="font-display text-xl uppercase tracking-wide text-chalk">
-                  {travaText(openEntry.fixture, openEntry.ticket.result)}
-                </span>
-                <span className="font-mono text-[10px] uppercase tracking-widest text-chalk/35">
-                  · erra e o bilhete zera
-                </span>
-              </div>
-
-              {/* Palpites completos */}
-              {openDetail.picks.length === 0 ? (
-                <p className="py-8 text-center font-mono text-[11px] uppercase tracking-widest text-chalk/35">
-                  Só a trava — sem variáveis.
-                </p>
-              ) : (
-                <ul className="space-y-2.5">
-                  {openDetail.picks.map((p, i) => (
-                    <li
-                      key={i}
-                      className="flex items-start gap-3 border border-chalk/12 bg-night-950/40 p-3"
-                    >
-                      <span className="mt-0.5 text-xl leading-none">{p.emoji}</span>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-display text-sm uppercase tracking-wide text-chalk">
-                            {p.nome}
-                          </span>
-                          <span
-                            className={`font-mono text-[9px] uppercase tracking-widest ${CAMADA_META[p.camada].accent}`}
-                          >
-                            {CAMADA_META[p.camada].label}
-                          </span>
-                        </div>
-                        <p className="mt-0.5 font-mono text-[10px] leading-relaxed text-chalk/45">
-                          {p.pergunta}
-                        </p>
-                        <div className="mt-1.5 flex items-center gap-1.5">
-                          <span
-                            className={`h-2 w-2 rounded-full ${
-                              p.side === "SIM" ? "bg-grass-400" : "bg-danger"
-                            }`}
-                          />
-                          <span className="font-mono text-[11px] uppercase tracking-wide text-chalk">
-                            {p.sideLabel}
-                          </span>
-                        </div>
-                      </div>
-                      <span className="shrink-0 font-display text-lg tabular-nums text-gold-400">
-                        +{p.pts}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-
-              {/* Concorrer: escolher bolão + pagar (simulado) */}
-              <div className="mt-5 border-t-2 border-dashed border-chalk/15 pt-4">
-                <div className="mb-2 font-display text-sm uppercase tracking-[0.16em] text-chalk">
+              {/* Concorrer: PRIMEIRO (ação principal — senão a pessoa se perde) */}
+              <div className="mb-4 border-b-2 border-dashed border-chalk/15 pb-4">
+                <div className="mb-2 font-display text-sm uppercase tracking-[0.16em] text-gold-400">
                   Concorrer com esse bilhete
                 </div>
                 {availablePools.length === 0 ? (
@@ -592,6 +533,65 @@ export function Prateleira({
                   </>
                 )}
               </div>
+
+              {/* Trava */}
+              <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-dashed border-chalk/15 pb-3">
+                <span className="border border-gold-400/50 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-widest text-gold-400">
+                  Trava
+                </span>
+                <span className="font-display text-xl uppercase tracking-wide text-chalk">
+                  {travaText(openEntry.fixture, openEntry.ticket.result)}
+                </span>
+                <span className="font-mono text-[10px] uppercase tracking-widest text-chalk/35">
+                  · erra e o bilhete zera
+                </span>
+              </div>
+
+              {/* Palpites completos */}
+              {openDetail.picks.length === 0 ? (
+                <p className="py-8 text-center font-mono text-[11px] uppercase tracking-widest text-chalk/35">
+                  Só a trava — sem variáveis.
+                </p>
+              ) : (
+                <ul className="space-y-2.5">
+                  {openDetail.picks.map((p, i) => (
+                    <li
+                      key={i}
+                      className="flex items-start gap-3 border border-chalk/12 bg-night-950/40 p-3"
+                    >
+                      <span className="mt-0.5 text-xl leading-none">{p.emoji}</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-display text-sm uppercase tracking-wide text-chalk">
+                            {p.nome}
+                          </span>
+                          <span
+                            className={`font-mono text-[9px] uppercase tracking-widest ${CAMADA_META[p.camada].accent}`}
+                          >
+                            {CAMADA_META[p.camada].label}
+                          </span>
+                        </div>
+                        <p className="mt-0.5 font-mono text-[10px] leading-relaxed text-chalk/45">
+                          {p.pergunta}
+                        </p>
+                        <div className="mt-1.5 flex items-center gap-1.5">
+                          <span
+                            className={`h-2 w-2 rounded-full ${
+                              p.side === "SIM" ? "bg-grass-400" : "bg-danger"
+                            }`}
+                          />
+                          <span className="font-mono text-[11px] uppercase tracking-wide text-chalk">
+                            {p.sideLabel}
+                          </span>
+                        </div>
+                      </div>
+                      <span className="shrink-0 font-display text-lg tabular-nums text-gold-400">
+                        +{p.pts}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             {/* Rodapé: total + ações */}
